@@ -10,9 +10,9 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
 
-        {/* Header */}
+      {/* Fixed Header Section */}
+      <View style={styles.fixedHeader}>
         <View style={styles.header}>
           <LogoHorizontal width={120} height={40} />
           <View style={styles.userInfo}>
@@ -22,8 +22,11 @@ export default function HomeScreen() {
             </View>
           </View>
         </View>
-
         <View style={styles.separator} />
+      </View>
+
+      {/* Scrollable Content */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
 
         {/* Hero Card - Déménagement Paris */}
         <View style={styles.heroCard}>
@@ -128,9 +131,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8F9FB',
   },
+  fixedHeader: {
+    paddingHorizontal: 24,
+    paddingTop: 10,
+    backgroundColor: '#F8F9FB',
+    zIndex: 1,
+  },
   scrollContent: {
     padding: 24,
-    paddingTop: 10,
+    paddingBottom: 52,
   },
   header: {
     flexDirection: 'row',
@@ -161,7 +170,7 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#E6E8F0',
     marginHorizontal: -24,
-    marginBottom: 24,
+    // marginBottom: 24,
   },
   heroCard: {
     backgroundColor: '#000833',

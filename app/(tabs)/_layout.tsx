@@ -62,8 +62,7 @@ export default function TabLayout() {
         }}
       />
 
-      {/* Hide explore if present, or just leave it out */}
-      <Tabs.Screen name="explore" options={{ href: null }} />
+
     </Tabs>
   );
 }
@@ -87,19 +86,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   scanButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#FFC107',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 30, // Lift it up
-    shadowColor: '#FFC107',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    // shadowColor: '#FFC107',
+    // shadowOffset: { width: 0, height: 4 },
+    // shadowOpacity: 0.3,
+    // shadowRadius: 8,
+    // elevation: 5,
     borderWidth: 4,
-    borderColor: '#F8F9FB', // Match background color to create 'cutout' effect if needed, or just hover
+    borderColor: '#000833', // Match background color to create 'cutout' effect if needed, or just hover
   }
 });
