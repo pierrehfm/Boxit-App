@@ -1,5 +1,4 @@
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 type AuthType = {
@@ -26,16 +25,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         // Check for stored session
-        AsyncStorage.getItem('user_session').then((session) => {
-            if (session) {
-                setUser(session);
-            }
-            // Simulate a small delay for the splash screen effect if needed
-            // ensuring the splash screen is visible for at least a moment
-            setTimeout(() => {
-                setIsLoading(false);
-            }, 2000);
-        });
+        // AsyncStorage.getItem('user_session').then((session) => {
+        //     if (session) {
+        //         setUser(session);
+        //     }
+        // Simulate a small delay for the splash screen effect if needed
+        // ensuring the splash screen is visible for at least a moment
+        setTimeout(() => {
+            setIsLoading(false);
+        }, 2000);
+        // });
     }, []);
 
     const signIn = () => {
@@ -43,14 +42,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         // Simulate login
         setTimeout(() => {
             setUser('demo_user');
-            AsyncStorage.setItem('user_session', 'demo_user');
+            // AsyncStorage.setItem('user_session', 'demo_user');
             setIsLoading(false);
         }, 500);
     };
 
     const signOut = () => {
         setUser(null);
-        AsyncStorage.removeItem('user_session');
+        // AsyncStorage.removeItem('user_session');
     };
 
     return (

@@ -1,7 +1,14 @@
+import {
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+  useFonts,
+} from '@expo-google-fonts/outfit';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { Redirect, Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
@@ -17,25 +24,16 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
 
-  useEffect(() => {
-    if (isLoading) return;
+  const [fontsLoaded] = useFonts({
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+  });
 
 
-    // Simple logic: if not logged in, go to login. If logged in, go to tabs.
-    // Check if we are already on the login screen
-    // Note: We are putting login in the root `app/login.tsx` so likely it is just a route '/login'
 
-    // Check current route
-    const currentRoute = segments.join('/');
-
-    if (!user && currentRoute !== 'login') {
-      router.replace('/login');
-    } else if (user && currentRoute === 'login') {
-      router.replace('/(tabs)');
-    }
-  }, [user, isLoading, segments]);
-
-  if (isLoading) {
+  if (isLoading || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         {/* SVG Logo is now a component thanks to the transformer */}
@@ -44,11 +42,26 @@ function RootLayoutNav() {
     );
   }
 
+  const currentRoute = segments.join('/');
+  // Define public routes that don't need auth
+  const isPublicRoute =
+    currentRoute === 'start' ||
+    currentRoute === 'login' ||
+    currentRoute === 'signup';
+
+  if (!user && !isPublicRoute) {
+    return <Redirect href="/start" />;
+  }
+
+  if (user && isPublicRoute) {
+    return <Redirect href="/(tabs)" />;
+  }
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="start" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
