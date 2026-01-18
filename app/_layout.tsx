@@ -62,6 +62,10 @@ function RootLayoutNav() {
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="start" options={{ headerShown: false }} />
+        <Stack.Screen name="new-box" options={{ headerShown: false }} />
+        <Stack.Screen name="box-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="add-item" options={{ headerShown: false }} />
+        <Stack.Screen name="update-status" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
