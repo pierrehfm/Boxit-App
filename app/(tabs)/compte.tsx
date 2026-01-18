@@ -62,38 +62,42 @@ export default function CompteScreen() {
                 <Text style={styles.sectionTitle}>PROJETS</Text>
 
                 {/* Project Card 1 - Active */}
-                <View style={styles.projectCard}>
-                    <View style={styles.projectHeader}>
-                        <Text style={styles.projectName}>Déménagement Paris</Text>
-                        <View style={[styles.statusBadge, { backgroundColor: '#D1FAE5' }]}>
-                            <Text style={[styles.statusText, { color: '#10B981' }]}>Actif</Text>
+                <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/project-dashboard')}>
+                    <View style={styles.projectCard}>
+                        <View style={styles.projectHeader}>
+                            <Text style={styles.projectName}>Déménagement Paris</Text>
+                            <View style={[styles.statusBadge, { backgroundColor: '#D1FAE5' }]}>
+                                <Text style={[styles.statusText, { color: '#10B981' }]}>Actif</Text>
+                            </View>
+                        </View>
+                        <Text style={styles.projectDate}>15 Jan 2026</Text>
+                        <View style={styles.progressRow}>
+                            <View style={styles.progressBarBg}>
+                                <View style={[styles.progressBarFill, { width: '25%', backgroundColor: '#000833' }]} />
+                            </View>
+                            <Text style={styles.progressText}>25%</Text>
                         </View>
                     </View>
-                    <Text style={styles.projectDate}>15 Jan 2026</Text>
-                    <View style={styles.progressRow}>
-                        <View style={styles.progressBarBg}>
-                            <View style={[styles.progressBarFill, { width: '25%', backgroundColor: '#000833' }]} />
-                        </View>
-                        <Text style={styles.progressText}>25%</Text>
-                    </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* Project Card 2 - Finished */}
-                <View style={styles.projectCard}>
-                    <View style={styles.projectHeader}>
-                        <Text style={styles.projectName}>Déménagement Lyon</Text>
-                        <View style={[styles.statusBadge, { backgroundColor: '#F0F2F5' }]}>
-                            <Text style={[styles.statusText, { color: '#6E7591' }]}>Terminé</Text>
+                <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/project-dashboard')}>
+                    <View style={styles.projectCard}>
+                        <View style={styles.projectHeader}>
+                            <Text style={styles.projectName}>Déménagement Lyon</Text>
+                            <View style={[styles.statusBadge, { backgroundColor: '#F0F2F5' }]}>
+                                <Text style={[styles.statusText, { color: '#6E7591' }]}>Terminé</Text>
+                            </View>
+                        </View>
+                        <Text style={styles.projectDate}>10 Déc 2025</Text>
+                        <View style={styles.progressRow}>
+                            <View style={styles.progressBarBg}>
+                                <View style={[styles.progressBarFill, { width: '100%', backgroundColor: '#10B981' }]} />
+                            </View>
+                            <Text style={[styles.progressText, { color: '#10B981' }]}>100%</Text>
                         </View>
                     </View>
-                    <Text style={styles.projectDate}>10 Déc 2025</Text>
-                    <View style={styles.progressRow}>
-                        <View style={styles.progressBarBg}>
-                            <View style={[styles.progressBarFill, { width: '100%', backgroundColor: '#10B981' }]} />
-                        </View>
-                        <Text style={[styles.progressText, { color: '#10B981' }]}>100%</Text>
-                    </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* Paramètres */}
                 <Text style={styles.sectionTitle}>PARAMÈTRES</Text>

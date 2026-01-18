@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 // @ts-ignore
 import LogoHorizontal from '@/assets/images/logoHorizontal.svg';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 export default function HomeScreen() {
   const { user } = useSession();
@@ -15,12 +16,9 @@ export default function HomeScreen() {
       <View style={styles.fixedHeader}>
         <View style={styles.header}>
           <LogoHorizontal width={120} height={40} />
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>JÉRÉMY DUC</Text>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={20} color="#fff" />
-            </View>
-          </View>
+          <TouchableOpacity onPress={() => router.push('/notifications')}>
+            <Ionicons name="notifications-outline" size={24} color="#000833" />
+          </TouchableOpacity>
         </View>
         <View style={styles.separator} />
       </View>
@@ -28,31 +26,39 @@ export default function HomeScreen() {
       {/* Scrollable Content */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
 
-        {/* Hero Card - Déménagement Paris */}
-        <View style={styles.heroCard}>
-          <View style={styles.heroHeader}>
-            <Text style={styles.heroTitle}>DÉMÉNAGEMENT PARIS</Text>
-            <View style={styles.dateContainer}>
-              <MaterialCommunityIcons name="calendar-blank" size={16} color="#A7A9BE" />
-              <Text style={styles.heroDate}>15 Jan 2026</Text>
-            </View>
-          </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>24</Text>
-              <Text style={styles.statLabel}>Cartons</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>52</Text>
-              <Text style={styles.statLabel}>Objets</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statValue}>25%</Text>
-              <Text style={styles.statLabel}>Complété</Text>
-            </View>
-          </View>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>MES PROJETS EN COURS</Text>
+          <TouchableOpacity>
+            <Text style={styles.seeAll}>Voir tout</Text>
+          </TouchableOpacity>
         </View>
+
+        <TouchableOpacity activeOpacity={0.9} onPress={() => router.push('/project-dashboard')}>
+          <View style={styles.heroCard}>
+            <View style={styles.heroHeader}>
+              <Text style={styles.heroTitle}>DÉMÉNAGEMENT PARIS</Text>
+              <View style={styles.dateContainer}>
+                <MaterialCommunityIcons name="calendar-blank" size={16} color="#A7A9BE" />
+                <Text style={styles.heroDate}>15 Jan 2026</Text>
+              </View>
+            </View>
+
+            <View style={styles.statsRow}>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>24</Text>
+                <Text style={styles.statLabel}>Cartons</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>52</Text>
+                <Text style={styles.statLabel}>Objets</Text>
+              </View>
+              <View style={styles.statBox}>
+                <Text style={styles.statValue}>25%</Text>
+                <Text style={styles.statLabel}>Complété</Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
 
         {/* Actions Rapides */}
         <Text style={styles.sectionTitle}>ACTIONS RAPIDES</Text>
@@ -172,6 +178,24 @@ const styles = StyleSheet.create({
     marginHorizontal: -24,
     // marginBottom: 24,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 14,
+    color: '#000833',
+    textTransform: 'uppercase',
+  },
+  seeAll: {
+    fontFamily: 'Outfit_400Regular',
+    fontSize: 12,
+    color: '#6E7591',
+    textDecorationLine: 'underline',
+  },
   heroCard: {
     backgroundColor: '#000833',
     borderRadius: 16,
@@ -228,14 +252,6 @@ const styles = StyleSheet.create({
     color: '#A7A9BE',
     fontFamily: 'Outfit_400Regular',
     fontSize: 12,
-  },
-  sectionTitle: {
-    fontFamily: 'Outfit_600SemiBold',
-    fontSize: 18,
-    color: '#000833',
-    textTransform: 'uppercase',
-    marginBottom: 16,
-    letterSpacing: 0.5,
   },
   actionsGrid: {
     flexDirection: 'row',
