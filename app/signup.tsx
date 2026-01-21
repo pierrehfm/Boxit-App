@@ -37,6 +37,8 @@ export default function SignupScreen() {
         } else {
             if (!session) {
                 Alert.alert('Succès', 'Veuillez vérifier vos emails pour confirmer votre inscription.');
+            } else {
+                router.replace('/');
             }
             // If session exists (auto-confirm), auth listener will handle it.
             setLoading(false);

@@ -21,8 +21,8 @@ export default function LoginScreen() {
             Alert.alert('Erreur', error.message);
             setLoading(false);
         } else {
-            // Auth state change will handle navigation in _layout or we can push manually
-            // router.replace('/(tabs)');
+            // Navigate to main app and reset history
+            router.replace('/');
             setLoading(false);
         }
     }

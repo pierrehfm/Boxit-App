@@ -6,7 +6,7 @@ import {
   useFonts,
 } from '@expo-google-fonts/outfit';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Redirect, Stack, useRouter, useSegments } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -31,7 +31,22 @@ function RootLayoutNav() {
     Outfit_700Bold,
   });
 
+  const currentRoute = segments.join('/');
+  // Define public routes that don't need auth
+  const isPublicRoute =
+    currentRoute === 'start' ||
+    currentRoute === 'login' ||
+    currentRoute === 'signup';
 
+  React.useEffect(() => {
+    if (isLoading || !fontsLoaded) return;
+
+    if (user && isPublicRoute) {
+      router.replace('/(tabs)');
+    } else if (!user && !isPublicRoute) {
+      router.replace('/start');
+    }
+  }, [user, isLoading, fontsLoaded, isPublicRoute]); // Use isPublicRoute instead of currentRoute
 
   if (isLoading || !fontsLoaded) {
     return (
@@ -40,21 +55,6 @@ function RootLayoutNav() {
         <Logo width={200} height={200} />
       </View>
     );
-  }
-
-  const currentRoute = segments.join('/');
-  // Define public routes that don't need auth
-  const isPublicRoute =
-    currentRoute === 'start' ||
-    currentRoute === 'login' ||
-    currentRoute === 'signup';
-
-  if (!user && !isPublicRoute) {
-    return <Redirect href="/start" />;
-  }
-
-  if (user && isPublicRoute) {
-    return <Redirect href="/(tabs)" />;
   }
 
   return (
@@ -70,6 +70,9 @@ function RootLayoutNav() {
         <Stack.Screen name="project-dashboard" options={{ headerShown: false }} />
         <Stack.Screen name="collaborators" options={{ headerShown: false }} />
         <Stack.Screen name="notifications" options={{ headerShown: false }} />
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="signup" options={{ headerShown: false }} />
+        <Stack.Screen name="edit-profile" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />

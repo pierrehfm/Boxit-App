@@ -34,7 +34,7 @@ export default function SettingsScreen() {
 
                 {/* COMPTE */}
                 <Text style={styles.sectionTitle}>COMPTE</Text>
-                <TouchableOpacity style={styles.itemCard}>
+                <TouchableOpacity style={styles.itemCard} onPress={() => router.push('/edit-profile')}>
                     <View style={styles.iconBox}>
                         <Feather name="user" size={20} color="#000833" />
                     </View>

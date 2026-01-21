@@ -1,13 +1,46 @@
 
 import { useSession } from '@/context/AuthContext';
+import { supabase } from '@/lib/supabase';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { router } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback } from 'react';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function CompteScreen() {
-    const { signOut } = useSession();
+    const { user, signOut } = useSession();
+    const [profile, setProfile] = React.useState<any>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (user) {
+                getProfile();
+            }
+        }, [user])
+    );
+
+    async function getProfile() {
+        try {
+            if (!user) return;
+
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single();
+
+            if (error) {
+                console.warn('Error fetching profile:', error);
+            }
+
+            if (data) {
+                setProfile(data);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }
 
     const handleLogout = () => {
         signOut();
@@ -15,6 +48,12 @@ export default function CompteScreen() {
         // but explicit replace helps UX sometimes. 
         // Usually replacing user state is enough.
     };
+
+    // Derived values with defaults
+    const userName = profile?.full_name || 'Utilisateur'; // Nom par défaut
+    const userEmail = user?.email || 'email@exemple.com';
+    const avatar = profile?.avatar_url; // Handle avatar image if URL exists later
+
 
     return (
         <View style={styles.container}>
@@ -30,11 +69,19 @@ export default function CompteScreen() {
 
                     <View style={styles.profileInfoContainer}>
                         <View style={styles.avatarContainer}>
-                            <Ionicons name="person-outline" size={40} color="#000833" />
+                            {avatar ? (
+                                <Image
+                                    source={{ uri: avatar }}
+                                    style={{ width: '100%', height: '100%', borderRadius: 24 }}
+                                    resizeMode="cover"
+                                />
+                            ) : (
+                                <Ionicons name="person-outline" size={40} color="#000833" />
+                            )}
                         </View>
                         <View style={styles.profileTextContainer}>
-                            <Text style={styles.userName}>JÉRÉMY DUC</Text>
-                            <Text style={styles.userEmail}>jeremy.duc@email.com</Text>
+                            <Text style={styles.userName}>{userName}</Text>
+                            <Text style={styles.userEmail}>{userEmail}</Text>
                         </View>
                     </View>
                 </SafeAreaView>
@@ -102,44 +149,57 @@ export default function CompteScreen() {
                 {/* Paramètres */}
                 <Text style={styles.sectionTitle}>PARAMÈTRES</Text>
 
+                {/* Paramètres */}
+                <Text style={styles.sectionTitle}>PARAMÈTRES</Text>
+
                 <View style={styles.menuContainer}>
-                    <TouchableOpacity style={styles.menuItem}>
-                        <View style={styles.menuIconBox}>
+                    <TouchableOpacity style={styles.itemCard} onPress={() => router.push('/edit-profile')}>
+                        <View style={styles.iconBox}>
                             <Feather name="user" size={20} color="#000833" />
                         </View>
-                        <Text style={styles.menuText}>Modifier le profil</Text>
+                        <View style={styles.itemContent}>
+                            <Text style={styles.itemTitle}>Modifier le profil</Text>
+                        </View>
                         <Ionicons name="chevron-forward" size={20} color="#A7A9BE" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.menuItem}>
-                        <View style={styles.menuIconBox}>
+                    <TouchableOpacity style={styles.itemCard}>
+                        <View style={styles.iconBox}>
                             <Feather name="bell" size={20} color="#000833" />
                         </View>
-                        <Text style={styles.menuText}>Notifications</Text>
+                        <View style={styles.itemContent}>
+                            <Text style={styles.itemTitle}>Notifications</Text>
+                        </View>
                         <Ionicons name="chevron-forward" size={20} color="#A7A9BE" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.menuItem}>
-                        <View style={styles.menuIconBox}>
+                    <TouchableOpacity style={styles.itemCard}>
+                        <View style={styles.iconBox}>
                             <Feather name="shield" size={20} color="#000833" />
                         </View>
-                        <Text style={styles.menuText}>Confidentialité</Text>
+                        <View style={styles.itemContent}>
+                            <Text style={styles.itemTitle}>Confidentialité</Text>
+                        </View>
                         <Ionicons name="chevron-forward" size={20} color="#A7A9BE" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.menuItem}>
-                        <View style={styles.menuIconBox}>
+                    <TouchableOpacity style={styles.itemCard}>
+                        <View style={styles.iconBox}>
                             <Feather name="help-circle" size={20} color="#000833" />
                         </View>
-                        <Text style={styles.menuText}>Aide & Support</Text>
+                        <View style={styles.itemContent}>
+                            <Text style={styles.itemTitle}>Aide & Support</Text>
+                        </View>
                         <Ionicons name="chevron-forward" size={20} color="#A7A9BE" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-                        <View style={[styles.menuIconBox, { backgroundColor: '#FEF2F2' }]}>
+                    <TouchableOpacity style={styles.itemCard} onPress={handleLogout}>
+                        <View style={[styles.iconBox, { backgroundColor: '#FEF2F2' }]}>
                             <Feather name="log-out" size={20} color="#EF4444" />
                         </View>
-                        <Text style={[styles.menuText, { color: '#EF4444' }]}>Se déconnecter</Text>
+                        <View style={styles.itemContent}>
+                            <Text style={[styles.itemTitle, { color: '#EF4444' }]}>Se déconnecter</Text>
+                        </View>
                         <Ionicons name="chevron-forward" size={20} color="#A7A9BE" />
                     </TouchableOpacity>
                 </View>
@@ -157,9 +217,9 @@ const styles = StyleSheet.create({
     settingsButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.2)', justifyContent: 'center', alignItems: 'center' },
 
     profileInfoContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginTop: 20 },
-    avatarContainer: { width: 80, height: 80, borderRadius: 24, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    avatarContainer: { width: 80, height: 80, borderRadius: 24, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginRight: 16, overflow: 'hidden' },
     profileTextContainer: { flex: 1 },
-    userName: { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#FFFFFF', textTransform: 'uppercase', marginBottom: 4 },
+    userName: { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#FFFFFF', marginBottom: 4 },
     userEmail: { fontFamily: 'Outfit_400Regular', fontSize: 14, color: '#A7A9BE' },
 
     scrollContent: { padding: 24, paddingBottom: 100 },
@@ -181,8 +241,9 @@ const styles = StyleSheet.create({
     progressBarFill: { height: '100%', borderRadius: 3 },
     progressText: { fontFamily: 'Outfit_700Bold', fontSize: 12, color: '#000833' },
 
-    menuContainer: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 8, marginTop: 8 },
-    menuItem: { flexDirection: 'row', alignItems: 'center', padding: 12, borderBottomWidth: 1, borderBottomColor: '#F8F9FB' },
-    menuIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F0F2F5', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-    menuText: { flex: 1, fontFamily: 'Outfit_600SemiBold', fontSize: 14, color: '#000833' },
+    menuContainer: { marginTop: 8 },
+    itemCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1 },
+    iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8F9FB', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    itemContent: { flex: 1 },
+    itemTitle: { fontFamily: 'Outfit_600SemiBold', fontSize: 14, color: '#000833' },
 });
