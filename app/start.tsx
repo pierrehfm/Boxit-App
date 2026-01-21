@@ -1,13 +1,12 @@
-
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useSession } from '../context/AuthContext';
 // @ts-ignore
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Logo from '../assets/images/logo.svg';
 
 export default function StartScreen() {
-    const { signIn } = useSession();
+    const router = useRouter();
 
     return (
         <View style={styles.container}>
@@ -45,11 +44,11 @@ export default function StartScreen() {
 
             {/* Buttons */}
             <View style={styles.buttonContainer}>
-                <TouchableOpacity style={styles.primaryButton} onPress={signIn}>
+                <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/signup')}>
                     <Text style={styles.primaryButtonText}>Crée un compte</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.secondaryButton} onPress={signIn}>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => router.push('/login')}>
                     <Text style={styles.secondaryButtonText}>Se connecter</Text>
                 </TouchableOpacity>
             </View>

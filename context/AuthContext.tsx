@@ -1,18 +1,20 @@
 
+import { Session, User } from '@supabase/supabase-js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 type AuthType = {
-    user: string | null;
+    user: User | null;
+    session: Session | null;
     isLoading: boolean;
-    signIn: () => void;
-    signOut: () => void;
+    signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthType>({
     user: null,
+    session: null,
     isLoading: true,
-    signIn: () => { },
-    signOut: () => { },
+    signOut: async () => { },
 });
 
 export function useSession() {
@@ -20,45 +22,39 @@ export function useSession() {
 }
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-    const [user, setUser] = useState<string | null>(null);
+    const [user, setUser] = useState<User | null>(null);
+    const [session, setSession] = useState<Session | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Check for stored session
-        // AsyncStorage.getItem('user_session').then((session) => {
-        //     if (session) {
-        //         setUser(session);
-        //     }
-        // Simulate a small delay for the splash screen effect if needed
-        // ensuring the splash screen is visible for at least a moment
-        setTimeout(() => {
+        // Fetch session on mount
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+            setUser(session?.user ?? null);
             setIsLoading(false);
-        }, 2000);
-        // });
+        });
+
+        // Listen for changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+            setUser(session?.user ?? null);
+            setIsLoading(false);
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    const signIn = () => {
-        setIsLoading(true);
-        // Simulate login
-        setTimeout(() => {
-            setUser('demo_user');
-            // AsyncStorage.setItem('user_session', 'demo_user');
-            setIsLoading(false);
-        }, 500);
-    };
-
-    const signOut = () => {
-        setUser(null);
-        // AsyncStorage.removeItem('user_session');
+    const signOut = async () => {
+        await supabase.auth.signOut();
     };
 
     return (
         <AuthContext.Provider
             value={{
-                signIn,
-                signOut,
+                session,
                 user,
                 isLoading,
+                signOut,
             }}>
             {children}
         </AuthContext.Provider>

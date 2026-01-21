@@ -37,12 +37,13 @@ export default function TabLayout() {
         name="scan"
         options={{
           title: '',
+          tabBarStyle: { display: 'none' },
           tabBarIcon: ({ color }) => (
             <View style={styles.scanButton}>
               <MaterialCommunityIcons name="qrcode-scan" size={30} color="#000833" />
             </View>
           ),
-          tabBarLabel: () => null, // No label for scan button usually in this design
+          tabBarLabel: () => null,
         }}
       />
 

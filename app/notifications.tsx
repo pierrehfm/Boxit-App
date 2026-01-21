@@ -5,7 +5,19 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const NOTIFICATIONS = [
+interface NotificationItem {
+    id: string;
+    title: string;
+    body: string;
+    time: string;
+    icon: string;
+    color: string;
+    bgColor: string;
+    border?: string;
+    bg?: string;
+}
+
+const NOTIFICATIONS: { section: string; data: NotificationItem[] }[] = [
     {
         section: "AUJOURD'HUI",
         data: [
