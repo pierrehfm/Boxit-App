@@ -1,18 +1,104 @@
 
+import { api, Project, ProjectMember, ProjectStats } from '@/lib/api';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ProjectDashboardScreen() {
+    const { projectId } = useLocalSearchParams<{ projectId: string }>();
+    const [project, setProject] = useState<Project | null>(null);
+    const [stats, setStats] = useState<ProjectStats | null>(null);
+    const [members, setMembers] = useState<ProjectMember[]>([]);
+    const [roomStats, setRoomStats] = useState<{ name: string; count: number; progress: number }[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const handleBack = () => {
         router.back();
     };
 
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                let currentProjectId = projectId;
+                if (!currentProjectId) {
+                    // Fallback to first project if not provided
+                    const projects = await api.getUserProjects();
+                    if (projects.length > 0) currentProjectId = projects[0].id;
+                    else {
+                        setLoading(false);
+                        return;
+                    }
+                }
+
+                const [p, s, boxes, m] = await Promise.all([
+                    api.getProject(currentProjectId),
+                    api.getProjectStats(currentProjectId),
+                    api.getAllBoxes(currentProjectId),
+                    api.getProjectMembers(currentProjectId)
+                ]);
+
+                setProject(p);
+                setStats(s);
+                setMembers(m);
+
+                const rooms: Record<string, { total: number; sealed: number }> = {};
+                boxes.forEach(box => {
+                    const roomName = box.room || 'Sans pièce';
+                    if (!rooms[roomName]) rooms[roomName] = { total: 0, sealed: 0 };
+                    rooms[roomName].total++;
+                    if (box.status === 'sealed' || box.status === 'unpacked') {
+                        rooms[roomName].sealed++;
+                    }
+                });
+
+                const roomStatsArray = Object.keys(rooms).map(name => ({
+                    name,
+                    count: rooms[name].total,
+                    progress: Math.round((rooms[name].sealed / rooms[name].total) * 100)
+                }));
+                roomStatsArray.sort((a, b) => b.count - a.count);
+
+                setRoomStats(roomStatsArray);
+
+            } catch (e) {
+                console.error("Error loading project dashboard:", e);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadData();
+    }, [projectId]);
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#000833" />
+            </View>
+        );
+    }
+
+    if (!project || !stats) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ fontFamily: 'Outfit_600SemiBold', color: '#000833' }}>Projet introuvable</Text>
+                <TouchableOpacity onPress={handleBack} style={{ marginTop: 20 }}>
+                    <Text style={{ color: '#000833', textDecorationLine: 'underline' }}>Retour</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    const globalProgress = stats.total_boxes > 0
+        ? Math.round(((stats.boxes_sealed + stats.boxes_unpacked) / stats.total_boxes) * 100)
+        : 0;
+
     return (
         <View style={styles.container}>
-            {/* Header */}
             <View style={styles.headerContainer}>
                 <SafeAreaView edges={['top']} style={styles.safeHeader}>
                     <Text style={styles.topLabel}>PROJET DASHBOARD</Text>
@@ -27,17 +113,19 @@ export default function ProjectDashboardScreen() {
                     </View>
 
                     <View style={styles.titleContainer}>
-                        <Text style={styles.projectTitle}>DÉMÉNAGEMENT PARIS</Text>
-                        <Text style={styles.projectDate}>15 Janvier 2026</Text>
+                        <Text style={styles.projectTitle} numberOfLines={2}>{project.name}</Text>
+                        <Text style={styles.projectDate}>
+                            {format(new Date(project.created_at), 'd MMMM yyyy', { locale: fr })}
+                        </Text>
                     </View>
 
                     <View style={styles.progressCard}>
                         <View style={styles.progressHeader}>
                             <Text style={styles.progressLabel}>Progression globale</Text>
-                            <Text style={styles.progressValue}>25%</Text>
+                            <Text style={styles.progressValue}>{globalProgress}%</Text>
                         </View>
                         <View style={styles.progressBarBg}>
-                            <View style={[styles.progressBarFill, { width: '25%' }]} />
+                            <View style={[styles.progressBarFill, { width: `${globalProgress}%` }]} />
                         </View>
                     </View>
                 </SafeAreaView>
@@ -45,13 +133,12 @@ export default function ProjectDashboardScreen() {
 
             <ScrollView contentContainerStyle={styles.content}>
 
-                {/* Stats Grid */}
                 <View style={styles.statsGrid}>
                     <View style={styles.statCard}>
                         <View style={[styles.statIconBox, { backgroundColor: '#000833' }]}>
                             <Feather name="box" size={24} color="#FFFFFF" />
                         </View>
-                        <Text style={styles.statNumber}>24</Text>
+                        <Text style={styles.statNumber}>{stats.total_boxes}</Text>
                         <Text style={styles.statLabel}>Cartons totaux</Text>
                     </View>
 
@@ -59,7 +146,7 @@ export default function ProjectDashboardScreen() {
                         <View style={[styles.statIconBox, { backgroundColor: '#D1FAE5' }]}>
                             <Ionicons name="checkmark-circle-outline" size={24} color="#10B981" />
                         </View>
-                        <Text style={[styles.statNumber, { color: '#10B981' }]}>6</Text>
+                        <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.boxes_sealed}</Text>
                         <Text style={styles.statLabel}>Cartons scellés</Text>
                     </View>
 
@@ -67,70 +154,73 @@ export default function ProjectDashboardScreen() {
                         <View style={[styles.statIconBox, { backgroundColor: '#DBEAFE' }]}>
                             <MaterialCommunityIcons name="progress-clock" size={24} color="#3B82F6" />
                         </View>
-                        <Text style={[styles.statNumber, { color: '#3B82F6' }]}>12</Text>
+                        <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{stats.boxes_filling}</Text>
                         <Text style={styles.statLabel}>En cours</Text>
                     </View>
+
 
                     <View style={styles.statCard}>
                         <View style={[styles.statIconBox, { backgroundColor: '#F0F2F5' }]}>
                             <MaterialCommunityIcons name="package-variant" size={24} color="#6E7591" />
                         </View>
-                        <Text style={[styles.statNumber, { color: '#6E7591' }]}>6</Text>
-                        <Text style={styles.statLabel}>Vides</Text>
+                        <Text style={[styles.statNumber, { color: '#6E7591' }]}>{stats.boxes_unpacked}</Text>
+                        <Text style={styles.statLabel}>Déballés</Text>
                     </View>
                 </View>
 
-                {/* Par Pièce */}
                 <Text style={styles.sectionTitle}>PAR PIÈCE</Text>
 
-                <View style={styles.roomRow}>
-                    <View style={styles.roomIconBox}>
-                        <MaterialCommunityIcons name="sofa-outline" size={24} color="#FFFFFF" />
-                    </View>
-                    <View style={styles.roomInfo}>
-                        <Text style={styles.roomName}>Salon</Text>
-                        <Text style={styles.roomSubtext}>8 cartons</Text>
-                    </View>
-                    <Text style={styles.roomPercentage}>33%</Text>
-                </View>
+                {roomStats.length > 0 ? (
+                    roomStats.map((room) => (
+                        <View key={room.name} style={styles.roomRow}>
+                            <View style={styles.roomIconBox}>
+                                <MaterialCommunityIcons name="home-outline" size={24} color="#FFFFFF" />
+                            </View>
+                            <View style={styles.roomInfo}>
+                                <Text style={styles.roomName}>{room.name}</Text>
+                                <Text style={styles.roomSubtext}>{room.count} cartons</Text>
+                            </View>
+                            <Text style={styles.roomPercentage}>{room.progress}%</Text>
+                        </View>
+                    ))
+                ) : (
+                    <Text style={{ color: '#6E7591', fontFamily: 'Outfit_400Regular' }}>Aucune donnée de pièce disponible.</Text>
+                )}
 
-                <View style={styles.roomRow}>
-                    <View style={styles.roomIconBox}>
-                        <MaterialCommunityIcons name="silverware-fork-knife" size={24} color="#FFFFFF" />
-                    </View>
-                    <View style={styles.roomInfo}>
-                        <Text style={styles.roomName}>Cuisine</Text>
-                        <Text style={styles.roomSubtext}>6 cartons</Text>
-                    </View>
-                    <Text style={styles.roomPercentage}>25%</Text>
-                </View>
-
-                <View style={styles.roomRow}>
-                    <View style={styles.roomIconBox}>
-                        <MaterialCommunityIcons name="bed-outline" size={24} color="#FFFFFF" />
-                    </View>
-                    <View style={styles.roomInfo}>
-                        <Text style={styles.roomName}>Chambre</Text>
-                        <Text style={styles.roomSubtext}>10 cartons</Text>
-                    </View>
-                    <Text style={styles.roomPercentage}>42%</Text>
-                </View>
-
-                {/* Équipe */}
                 <Text style={styles.sectionTitle}>ÉQUIPE</Text>
                 <View style={styles.teamCard}>
                     <View style={styles.teamHeader}>
                         <View style={styles.avatarRow}>
-                            <View style={[styles.avatarCircle, { backgroundColor: '#000833', zIndex: 3 }]}>
-                                <Ionicons name="person-outline" size={16} color="#FFFFFF" />
-                            </View>
-                            <View style={[styles.avatarCircle, { backgroundColor: '#E6E8F0', marginLeft: -10, zIndex: 2 }]} />
-                            <View style={[styles.avatarCircle, { backgroundColor: '#E6E8F0', marginLeft: -10, zIndex: 1 }]} />
-                            <View style={[styles.avatarCircle, { backgroundColor: '#E6E8F0', marginLeft: -10, zIndex: 0, justifyContent: 'center', alignItems: 'center' }]}>
-                                <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 10, color: '#6E7591' }}>+1</Text>
-                            </View>
+                            {members.slice(0, 3).map((member, index) => (
+                                <View
+                                    key={index}
+                                    style={[
+                                        styles.avatarCircle,
+                                        {
+                                            zIndex: 3 - index,
+                                            marginLeft: index > 0 ? -10 : 0,
+                                            backgroundColor: '#E6E8F0',
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            overflow: 'hidden'
+                                        }
+                                    ]}
+                                >
+                                    {member.avatar_url ? (
+
+                                        <Ionicons name="person" size={16} color="#000833" />
+                                    ) : (
+                                        <Ionicons name="person-outline" size={16} color="#000833" />
+                                    )}
+                                </View>
+                            ))}
+                            {members.length > 3 && (
+                                <View style={[styles.avatarCircle, { backgroundColor: '#E6E8F0', marginLeft: -10, zIndex: 0, justifyContent: 'center', alignItems: 'center' }]}>
+                                    <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 10, color: '#6E7591' }}>+{members.length - 3}</Text>
+                                </View>
+                            )}
                         </View>
-                        <Text style={styles.teamCount}>4 collaborateurs</Text>
+                        <Text style={styles.teamCount}>{members.length} collaborateur{members.length > 1 ? 's' : ''}</Text>
                     </View>
 
                     <TouchableOpacity style={styles.manageButton} onPress={() => router.push('/collaborators')}>

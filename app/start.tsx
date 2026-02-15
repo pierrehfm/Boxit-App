@@ -1,8 +1,7 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-// @ts-ignore
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Logo from '../assets/images/logo.svg';
 
 export default function StartScreen() {
@@ -10,12 +9,10 @@ export default function StartScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Top Section with Logo */}
             <View style={styles.logoContainer}>
                 <Logo width={120} height={120} />
             </View>
 
-            {/* Text Section */}
             <View style={styles.textContainer}>
                 <Text style={styles.title}>Gérez vos cartons intelligemment</Text>
                 <Text style={styles.subtitle}>
@@ -23,7 +20,6 @@ export default function StartScreen() {
                 </Text>
             </View>
 
-            {/* Visual Indicator / Icons */}
             <View style={styles.visualContainer}>
                 <View style={styles.iconBox}>
                     <MaterialCommunityIcons name="crop-free" size={32} color="#000833" />
@@ -42,7 +38,6 @@ export default function StartScreen() {
                 </View>
             </View>
 
-            {/* Buttons */}
             <View style={styles.buttonContainer}>
                 <TouchableOpacity style={styles.primaryButton} onPress={() => router.push('/signup')}>
                     <Text style={styles.primaryButtonText}>Crée un compte</Text>
@@ -59,7 +54,7 @@ export default function StartScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F9FB', // Light background from image
+        backgroundColor: '#F8F9FB',
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 24,
@@ -73,16 +68,16 @@ const styles = StyleSheet.create({
         marginBottom: 48,
     },
     title: {
-        fontFamily: 'Outfit_600SemiBold', // Assuming loading this variant
+        fontFamily: 'Outfit_600SemiBold',
         fontSize: 22,
-        color: '#000833', // Dark Navy Blue
+        color: '#000833',
         textAlign: 'center',
         marginBottom: 12,
     },
     subtitle: {
         fontFamily: 'Outfit_400Regular',
         fontSize: 16,
-        color: '#6E7591', // Greyish text
+        color: '#6E7591',
         textAlign: 'center',
         lineHeight: 24,
         paddingHorizontal: 16,
@@ -125,7 +120,7 @@ const styles = StyleSheet.create({
         height: 6,
     },
     dotLine: {
-        width: 24, // Represents the line
+        width: 24,
         height: 1,
         backgroundColor: '#000833',
     },

@@ -1,0 +1,535 @@
+-- =====================================================
+-- BOXIT - Migration Initiale
+-- Application de gestion de déménagement avec QR codes
+-- =====================================================
+
+-- Activation des extensions nécessaires
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- =====================================================
+-- 1. TYPES ENUM
+-- =====================================================
+
+-- Rôles des membres dans un projet
+CREATE TYPE project_role AS ENUM ('owner', 'editor', 'viewer');
+
+-- Statuts des cartons
+CREATE TYPE box_status AS ENUM ('filling', 'sealed', 'unpacked');
+
+-- =====================================================
+-- 2. TABLES
+-- =====================================================
+
+-- Table des profils utilisateurs (synchronisée avec auth.users)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT UNIQUE NOT NULL,
+    full_name TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Table des projets de déménagement
+CREATE TABLE IF NOT EXISTS public.projects (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name TEXT NOT NULL,
+    description TEXT,
+    owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Table de liaison Many-to-Many : projets <-> membres
+CREATE TABLE IF NOT EXISTS public.project_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    role project_role NOT NULL DEFAULT 'viewer',
+    joined_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(project_id, user_id)
+);
+
+-- Table des cartons
+CREATE TABLE IF NOT EXISTS public.boxes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    project_id UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
+    qr_code TEXT UNIQUE NOT NULL,
+    name TEXT NOT NULL,
+    room TEXT,
+    color TEXT DEFAULT '#3B82F6', -- Hex color code
+    is_fragile BOOLEAN DEFAULT FALSE,
+    status box_status DEFAULT 'filling',
+    cover_photo_path TEXT, -- Chemin vers le storage Supabase
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index pour optimiser les recherches par QR code
+CREATE INDEX IF NOT EXISTS idx_boxes_qr_code ON public.boxes(qr_code);
+CREATE INDEX IF NOT EXISTS idx_boxes_project_id ON public.boxes(project_id);
+
+-- Table des items dans les cartons
+CREATE TABLE IF NOT EXISTS public.items (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    box_id UUID NOT NULL REFERENCES public.boxes(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    quantity INTEGER DEFAULT 1,
+    description TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Index pour optimiser les requêtes par carton
+CREATE INDEX IF NOT EXISTS idx_items_box_id ON public.items(box_id);
+
+-- =====================================================
+-- 3. TRIGGERS POUR UPDATED_AT
+-- =====================================================
+
+-- Fonction générique pour mettre à jour updated_at
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Application des triggers
+CREATE TRIGGER set_updated_at_profiles
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER set_updated_at_projects
+    BEFORE UPDATE ON public.projects
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER set_updated_at_boxes
+    BEFORE UPDATE ON public.boxes
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER set_updated_at_items
+    BEFORE UPDATE ON public.items
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_updated_at();
+
+-- =====================================================
+-- 4. SYNCHRONISATION AUTH.USERS -> PUBLIC.PROFILES
+-- =====================================================
+
+-- Fonction pour créer automatiquement un profil lors de l'inscription
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, email, full_name, avatar_url)
+    VALUES (
+        NEW.id,
+        NEW.email,
+        NEW.raw_user_meta_data->>'full_name',
+        NEW.raw_user_meta_data->>'avatar_url'
+    );
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger sur auth.users
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_new_user();
+
+-- =====================================================
+-- 5. FONCTION HELPER POUR VÉRIFIER L'APPARTENANCE
+-- =====================================================
+
+-- Vérifie si un utilisateur est membre d'un projet
+CREATE OR REPLACE FUNCTION public.is_project_member(project_uuid UUID, user_uuid UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.project_members
+        WHERE project_id = project_uuid
+        AND user_id = user_uuid
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Vérifie si un utilisateur a un rôle spécifique dans un projet
+CREATE OR REPLACE FUNCTION public.has_project_role(
+    project_uuid UUID,
+    user_uuid UUID,
+    required_role project_role
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.project_members
+        WHERE project_id = project_uuid
+        AND user_id = user_uuid
+        AND role = required_role
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =====================================================
+-- 6. ROW LEVEL SECURITY (RLS)
+-- =====================================================
+
+-- Activation RLS sur toutes les tables
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.boxes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.items ENABLE ROW LEVEL SECURITY;
+
+-- -----------------------------------------------------
+-- POLICIES : PROFILES
+-- -----------------------------------------------------
+
+-- Tout le monde peut lire tous les profils (pour afficher les membres)
+CREATE POLICY "Profiles are viewable by everyone"
+    ON public.profiles
+    FOR SELECT
+    USING (true);
+
+-- Les utilisateurs peuvent insérer leur propre profil
+CREATE POLICY "Users can insert their own profile"
+    ON public.profiles
+    FOR INSERT
+    WITH CHECK (auth.uid() = id);
+
+-- Les utilisateurs peuvent modifier uniquement leur propre profil
+CREATE POLICY "Users can update their own profile"
+    ON public.profiles
+    FOR UPDATE
+    USING (auth.uid() = id)
+    WITH CHECK (auth.uid() = id);
+
+-- -----------------------------------------------------
+-- POLICIES : PROJECTS
+-- -----------------------------------------------------
+
+-- Les utilisateurs peuvent voir les projets dont ils sont membres
+CREATE POLICY "Users can view projects they are members of"
+    ON public.projects
+    FOR SELECT
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members
+            WHERE project_id = projects.id
+        )
+    );
+
+-- Les utilisateurs peuvent créer des projets
+CREATE POLICY "Users can create projects"
+    ON public.projects
+    FOR INSERT
+    WITH CHECK (auth.uid() = owner_id);
+
+-- Seuls les owners peuvent modifier leur projet
+CREATE POLICY "Project owners can update their projects"
+    ON public.projects
+    FOR UPDATE
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members
+            WHERE project_id = projects.id
+            AND role = 'owner'
+        )
+    );
+
+-- Seuls les owners peuvent supprimer leur projet
+CREATE POLICY "Project owners can delete their projects"
+    ON public.projects
+    FOR DELETE
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members
+            WHERE project_id = projects.id
+            AND role = 'owner'
+        )
+    );
+
+-- -----------------------------------------------------
+-- POLICIES : PROJECT_MEMBERS
+-- -----------------------------------------------------
+
+-- Les membres peuvent voir les autres membres de leurs projets
+CREATE POLICY "Users can view members of their projects"
+    ON public.project_members
+    FOR SELECT
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members pm
+            WHERE pm.project_id = project_members.project_id
+        )
+    );
+
+-- Les owners peuvent ajouter des membres
+CREATE POLICY "Project owners can add members"
+    ON public.project_members
+    FOR INSERT
+    WITH CHECK (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members
+            WHERE project_id = project_members.project_id
+            AND role = 'owner'
+        )
+    );
+
+-- Les owners peuvent modifier les rôles
+CREATE POLICY "Project owners can update member roles"
+    ON public.project_members
+    FOR UPDATE
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members pm
+            WHERE pm.project_id = project_members.project_id
+            AND pm.role = 'owner'
+        )
+    );
+
+-- Les owners peuvent retirer des membres
+CREATE POLICY "Project owners can remove members"
+    ON public.project_members
+    FOR DELETE
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members pm
+            WHERE pm.project_id = project_members.project_id
+            AND pm.role = 'owner'
+        )
+    );
+
+-- -----------------------------------------------------
+-- POLICIES : BOXES
+-- -----------------------------------------------------
+
+-- Les membres du projet peuvent voir les cartons
+-- CRITIQUE : Vérification via le project_id du carton
+CREATE POLICY "Project members can view boxes"
+    ON public.boxes
+    FOR SELECT
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members
+            WHERE project_id = boxes.project_id
+        )
+    );
+
+-- Les editors et owners peuvent créer des cartons
+CREATE POLICY "Project editors can create boxes"
+    ON public.boxes
+    FOR INSERT
+    WITH CHECK (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members
+            WHERE project_id = boxes.project_id
+            AND role IN ('owner', 'editor')
+        )
+    );
+
+-- Les editors et owners peuvent modifier les cartons
+CREATE POLICY "Project editors can update boxes"
+    ON public.boxes
+    FOR UPDATE
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members
+            WHERE project_id = boxes.project_id
+            AND role IN ('owner', 'editor')
+        )
+    );
+
+-- Les editors et owners peuvent supprimer les cartons
+CREATE POLICY "Project editors can delete boxes"
+    ON public.boxes
+    FOR DELETE
+    USING (
+        auth.uid() IN (
+            SELECT user_id
+            FROM public.project_members
+            WHERE project_id = boxes.project_id
+            AND role IN ('owner', 'editor')
+        )
+    );
+
+-- -----------------------------------------------------
+-- POLICIES : ITEMS
+-- -----------------------------------------------------
+
+-- Les membres peuvent voir les items des cartons de leurs projets
+-- CRITIQUE : Double vérification via boxes.project_id
+CREATE POLICY "Project members can view items"
+    ON public.items
+    FOR SELECT
+    USING (
+        auth.uid() IN (
+            SELECT pm.user_id
+            FROM public.project_members pm
+            INNER JOIN public.boxes b ON b.project_id = pm.project_id
+            WHERE b.id = items.box_id
+        )
+    );
+
+-- Les editors et owners peuvent créer des items
+CREATE POLICY "Project editors can create items"
+    ON public.items
+    FOR INSERT
+    WITH CHECK (
+        auth.uid() IN (
+            SELECT pm.user_id
+            FROM public.project_members pm
+            INNER JOIN public.boxes b ON b.project_id = pm.project_id
+            WHERE b.id = items.box_id
+            AND pm.role IN ('owner', 'editor')
+        )
+    );
+
+-- Les editors et owners peuvent modifier des items
+CREATE POLICY "Project editors can update items"
+    ON public.items
+    FOR UPDATE
+    USING (
+        auth.uid() IN (
+            SELECT pm.user_id
+            FROM public.project_members pm
+            INNER JOIN public.boxes b ON b.project_id = pm.project_id
+            WHERE b.id = items.box_id
+            AND pm.role IN ('owner', 'editor')
+        )
+    );
+
+-- Les editors et owners peuvent supprimer des items
+CREATE POLICY "Project editors can delete items"
+    ON public.items
+    FOR DELETE
+    USING (
+        auth.uid() IN (
+            SELECT pm.user_id
+            FROM public.project_members pm
+            INNER JOIN public.boxes b ON b.project_id = pm.project_id
+            WHERE b.id = items.box_id
+            AND pm.role IN ('owner', 'editor')
+        )
+    );
+
+-- =====================================================
+-- 7. STORAGE BUCKET POUR LES PHOTOS
+-- =====================================================
+
+-- Création du bucket pour les photos de cartons (public)
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('box-photos', 'box-photos', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policy : Les membres du projet peuvent uploader des photos
+CREATE POLICY "Project members can upload box photos"
+    ON storage.objects
+    FOR INSERT
+    WITH CHECK (
+        bucket_id = 'box-photos'
+        AND auth.uid() IN (
+            SELECT pm.user_id
+            FROM public.project_members pm
+            INNER JOIN public.boxes b ON b.project_id = pm.project_id
+            WHERE b.id::text = (storage.foldername(name))[1]
+            AND pm.role IN ('owner', 'editor')
+        )
+    );
+
+-- Policy : Les membres peuvent voir les photos des cartons de leurs projets
+CREATE POLICY "Project members can view box photos"
+    ON storage.objects
+    FOR SELECT
+    USING (
+        bucket_id = 'box-photos'
+        AND auth.uid() IN (
+            SELECT pm.user_id
+            FROM public.project_members pm
+            INNER JOIN public.boxes b ON b.project_id = pm.project_id
+            WHERE b.id::text = (storage.foldername(name))[1]
+        )
+    );
+
+-- Policy : Les editors peuvent supprimer les photos
+CREATE POLICY "Project editors can delete box photos"
+    ON storage.objects
+    FOR DELETE
+    USING (
+        bucket_id = 'box-photos'
+        AND auth.uid() IN (
+            SELECT pm.user_id
+            FROM public.project_members pm
+            INNER JOIN public.boxes b ON b.project_id = pm.project_id
+            WHERE b.id::text = (storage.foldername(name))[1]
+            AND pm.role IN ('owner', 'editor')
+        )
+    );
+
+-- =====================================================
+-- 8. TRIGGER POUR AJOUTER AUTOMATIQUEMENT LE OWNER
+-- =====================================================
+
+-- Quand un projet est créé, ajouter automatiquement le owner comme membre
+CREATE OR REPLACE FUNCTION public.add_owner_as_member()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.project_members (project_id, user_id, role)
+    VALUES (NEW.id, NEW.owner_id, 'owner');
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_project_created
+    AFTER INSERT ON public.projects
+    FOR EACH ROW
+    EXECUTE FUNCTION public.add_owner_as_member();
+
+-- =====================================================
+-- 9. VUES UTILES (OPTIONNEL)
+-- =====================================================
+
+-- Vue pour obtenir les statistiques d'un projet
+CREATE OR REPLACE VIEW public.project_stats AS
+SELECT
+    p.id AS project_id,
+    p.name AS project_name,
+    COUNT(DISTINCT b.id) AS total_boxes,
+    COUNT(DISTINCT i.id) AS total_items,
+    COUNT(DISTINCT CASE WHEN b.status = 'filling' THEN b.id END) AS boxes_filling,
+    COUNT(DISTINCT CASE WHEN b.status = 'sealed' THEN b.id END) AS boxes_sealed,
+    COUNT(DISTINCT CASE WHEN b.status = 'unpacked' THEN b.id END) AS boxes_unpacked
+FROM public.projects p
+LEFT JOIN public.boxes b ON b.project_id = p.id
+LEFT JOIN public.items i ON i.box_id = b.id
+GROUP BY p.id, p.name;
+
+-- =====================================================
+-- FIN DE LA MIGRATION
+-- =====================================================
+
+-- Commentaires finaux :
+-- - Toutes les tables ont RLS activé
+-- - Les policies garantissent que seuls les membres d'un projet peuvent accéder aux données
+-- - Le trigger auth.users -> profiles est automatique
+-- - Le storage bucket est configuré avec ses policies
+-- - Les indexes optimisent les recherches fréquentes

@@ -71,22 +71,17 @@ export default function EditProfileScreen() {
         try {
             setSaving(true);
 
-            // Fetch the image from the local URI
             const response = await fetch(uri);
             const blob = await response.blob();
 
-            // Convert blob to base64
             const reader = new FileReader();
             reader.onload = async () => {
                 const base64data = reader.result as string;
 
-                // Directly set the base64 string as the avatarUrl
-                // This bypasses the need for Supabase Storage buckets
-                // Ensure your 'profiles' table 'avatar_url' column is of type TEXT which can hold large strings
+
                 setAvatarUrl(base64data);
 
                 if (user) {
-                    // Save immediately
                     await supabase.from('profiles').upsert({
                         id: user.id,
                         avatar_url: base64data,

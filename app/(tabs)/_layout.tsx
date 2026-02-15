@@ -93,13 +93,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFC107',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 30, // Lift it up
-    // shadowColor: '#FFC107',
-    // shadowOffset: { width: 0, height: 4 },
-    // shadowOpacity: 0.3,
-    // shadowRadius: 8,
-    // elevation: 5,
+    marginBottom: 30,
     borderWidth: 4,
-    borderColor: '#000833', // Match background color to create 'cutout' effect if needed, or just hover
+    borderColor: '#000833',
   }
 });

@@ -21,7 +21,6 @@ export default function LoginScreen() {
             Alert.alert('Erreur', error.message);
             setLoading(false);
         } else {
-            // Navigate to main app and reset history
             router.replace('/');
             setLoading(false);
         }
@@ -83,7 +82,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F9FB', // Light background
+        backgroundColor: '#F8F9FB',
         justifyContent: 'center',
         padding: 24,
     },
@@ -109,7 +108,7 @@ const styles = StyleSheet.create({
     },
     label: {
         fontFamily: 'Outfit_500Medium',
-        color: '#000833', // Or '#374151'
+        color: '#000833',
         marginBottom: 8,
         fontSize: 14,
     },
@@ -124,7 +123,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_400Regular',
     },
     button: {
-        backgroundColor: '#F7B900', // Yellow/Gold
+        backgroundColor: '#F7B900',
         borderRadius: 8,
         height: 48,
         justifyContent: 'center',

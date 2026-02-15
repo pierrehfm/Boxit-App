@@ -48,7 +48,6 @@ export default function NotificationsScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
             <View style={styles.headerContainer}>
                 <SafeAreaView edges={['top']} style={styles.safeHeader}>
                     <View style={styles.navRow}>
@@ -104,7 +103,7 @@ const styles = StyleSheet.create({
         borderRadius: 16,
         marginBottom: 16,
         flexDirection: 'row',
-        overflow: 'hidden', // to clip the left strip if needed, but styling allows separate
+        overflow: 'hidden',
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2
     },
     leftStrip: {

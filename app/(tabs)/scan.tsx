@@ -1,14 +1,14 @@
 
+import { api } from '@/lib/api';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Dimensions, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Dimensions, Platform, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
-const FRAME_SIZE = width * 0.7;
 
 export default function ScanScreen() {
     const router = useRouter();
@@ -16,14 +16,21 @@ export default function ScanScreen() {
     const [facing, setFacing] = useState<'back' | 'front'>('back');
     const [torch, setTorch] = useState<boolean>(false);
     const [scanned, setScanned] = useState(false);
+    const [defaultProjectId, setDefaultProjectId] = useState<string | null>(null);
+    const [processing, setProcessing] = useState(false);
+
+    useEffect(() => {
+        // Fetch default project ID (first one)
+        api.getUserProjects().then(projects => {
+            if (projects.length > 0) setDefaultProjectId(projects[0].id);
+        }).catch(err => console.error(err));
+    }, []);
 
     if (!permission) {
-        // Camera permissions are still loading.
         return <View style={styles.container} />;
     }
 
     if (!permission.granted) {
-        // Camera permissions are not granted yet.
         return (
             <View style={[styles.container, styles.permissionContainer]}>
                 <Text style={styles.message}>Nous avons besoin de votre permission pour utiliser la caméra</Text>
@@ -34,15 +41,68 @@ export default function ScanScreen() {
         );
     }
 
-    const handleBarcodeScanned = ({ type, data }: { type: string; data: string }) => {
+    const handleBarcodeScanned = async ({ type, data }: { type: string; data: string }) => {
+        if (scanned || processing) return;
         setScanned(true);
-        alert(`Bar code with type ${type} and data ${data} has been scanned!`);
-        // Reset scanned state after a delay if you want continuous scanning
-        setTimeout(() => setScanned(false), 2000);
+        setProcessing(true);
+
+        try {
+            const box = await api.getBoxByQR(data);
+
+            if (box) {
+                Alert.alert("Carton trouvé", `Carton : ${box.name}`, [
+                    {
+                        text: "Voir",
+                        onPress: () => {
+                            router.push({ pathname: '/box-detail', params: { boxId: box.id } });
+                            setTimeout(() => { setScanned(false); setProcessing(false); }, 1000);
+                        }
+                    },
+                    {
+                        text: "Annuler",
+                        style: "cancel",
+                        onPress: () => {
+                            setScanned(false);
+                            setProcessing(false);
+                        }
+                    }
+                ]);
+            } else {
+                if (!defaultProjectId) {
+                    Alert.alert("Erreur", "Aucun projet trouvé. Veuillez créer un projet d'abord.", [
+                        { text: "OK", onPress: () => { setScanned(false); setProcessing(false); } }
+                    ]);
+                    return;
+                }
+
+                Alert.alert("Carton inconnu", "Ce QR code ne correspond à aucun carton. Voulez-vous créer un nouveau carton ?", [
+                    {
+                        text: "Créer",
+                        onPress: () => {
+                            router.push({ pathname: '/new-box', params: { qrCode: data, projectId: defaultProjectId } });
+                            setTimeout(() => { setScanned(false); setProcessing(false); }, 1000);
+                        }
+                    },
+                    {
+                        text: "Annuler",
+                        style: "cancel",
+                        onPress: () => {
+                            setScanned(false);
+                            setProcessing(false);
+                        }
+                    }
+                ]);
+            }
+
+        } catch (error) {
+            console.error("Scan error:", error);
+            Alert.alert("Erreur", "Une erreur est survenue lors de la vérification du code.");
+            setScanned(false);
+            setProcessing(false);
+        }
     };
 
     const pickImage = async () => {
-        // No permissions request is necessary for launching the image library
         let result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             allowsEditing: true,
@@ -52,11 +112,6 @@ export default function ScanScreen() {
 
         if (!result.canceled) {
             console.log(result.assets[0].uri);
-            // Here you would process the image for QR codes if possible, 
-            // but expo-camera usually handles live scan. 
-            // Detecting QR from static image requires another library (like distinct-qr-code-reader or Google ML Kit), 
-            // or using expo-barcode-scanner if it supports it (deprecated).
-            // For now, we just acknowledge the user action as per request.
             alert('Image sélectionnée (Scan depuis image non implémenté sans backend/librairie extra)');
         }
     };
@@ -69,7 +124,6 @@ export default function ScanScreen() {
         <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
             <StatusBar barStyle="light-content" backgroundColor="#000833" />
 
-            {/* Header Area */}
             <View style={styles.header}>
                 <Text style={styles.smallTitle}>SCANNER QR</Text>
 
@@ -93,7 +147,6 @@ export default function ScanScreen() {
                 </View>
             </View>
 
-            {/* Camera Area */}
             <View style={styles.cameraContainer}>
                 <CameraView
                     style={styles.camera}
@@ -105,33 +158,32 @@ export default function ScanScreen() {
                     }}
                 />
 
-                {/* Overlay is now a sibling, absolutely positioned on top */}
                 <View pointerEvents="none" style={StyleSheet.absoluteFill}>
                     <View style={styles.overlay}>
                         <View style={styles.scanFrame}>
-                            {/* Dashed Box Background */}
                             <View style={styles.dashedBox} />
 
-                            {/* Visual corners */}
                             <View style={[styles.corner, styles.topLeft]} />
                             <View style={[styles.corner, styles.topRight]} />
                             <View style={[styles.corner, styles.bottomLeft]} />
                             <View style={[styles.corner, styles.bottomRight]} />
 
-                            {/* Center marker */}
-                            <View style={styles.centerMarker}>
-                                <View style={styles.centerLine} />
-                                <View style={[styles.centerCorner, styles.cTopLeft]} />
-                                <View style={[styles.centerCorner, styles.cTopRight]} />
-                                <View style={[styles.centerCorner, styles.cBottomLeft]} />
-                                <View style={[styles.centerCorner, styles.cBottomRight]} />
-                            </View>
+                            {processing ? (
+                                <ActivityIndicator size="large" color="#FFFFFF" />
+                            ) : (
+                                <View style={styles.centerMarker}>
+                                    <View style={styles.centerLine} />
+                                    <View style={[styles.centerCorner, styles.cTopLeft]} />
+                                    <View style={[styles.centerCorner, styles.cTopRight]} />
+                                    <View style={[styles.centerCorner, styles.cBottomLeft]} />
+                                    <View style={[styles.centerCorner, styles.cBottomRight]} />
+                                </View>
+                            )}
                         </View>
                     </View>
                 </View>
             </View>
 
-            {/* Footer Area */}
             <View style={styles.footer}>
                 <Text style={styles.instructions}>Positionnez le QR code dans le cadre</Text>
                 <Text style={styles.subInstructions}>Le scan se fera{'\n'}automatiquement</Text>
@@ -161,7 +213,7 @@ const styles = StyleSheet.create({
         paddingBottom: 10,
         color: 'white',
         fontSize: 16,
-        fontFamily: 'Outfit_400Regular', // Assuming font exists based on other tabs
+        fontFamily: 'Outfit_400Regular',
     },
     permissionButton: {
         backgroundColor: '#FFFFFF',
@@ -205,7 +257,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 12,
-        backgroundColor: '#1A214D', // Slightly lighter blue for button bg
+        backgroundColor: '#1A214D',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -217,9 +269,6 @@ const styles = StyleSheet.create({
         flex: 1,
         marginHorizontal: 0,
         overflow: 'hidden',
-        // Alternatively, if we want the camera ONLY in the middle square:
-        // But standard UX is full screen or large area.
-        // The design shows dark blue top and bottom, so we put camera in flex: 1 middle.
         borderTopLeftRadius: 0,
         borderTopRightRadius: 0,
     },
@@ -228,7 +277,7 @@ const styles = StyleSheet.create({
     },
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0, 8, 51, 0.5)', // Semi-transparent blue overlay
+        backgroundColor: 'rgba(0, 8, 51, 0.5)',
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -237,10 +286,6 @@ const styles = StyleSheet.create({
         height: 250,
         justifyContent: 'center',
         alignItems: 'center',
-        // position: 'relative',
-        // Border is dashed in the design. 
-        // Implementing dashed border with corners is complex in purely CSS/Styles without SVG.
-        // We will simulate with corners.
     },
 
     // Dashed Box
@@ -251,10 +296,9 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: 'rgba(255, 255, 255, 0.5)',
         borderStyle: 'dashed',
-        borderRadius: 24, // Matching corner radius visually
+        borderRadius: 24,
     },
 
-    // Outer Corners
     corner: {
         position: 'absolute',
         width: 32,
@@ -268,7 +312,6 @@ const styles = StyleSheet.create({
     bottomLeft: { bottom: 0, left: 0, borderTopWidth: 0, borderRightWidth: 0 },
     bottomRight: { bottom: 0, right: 0, borderTopWidth: 0, borderLeftWidth: 0 },
 
-    // Center Marker
     centerMarker: {
         width: 80,
         height: 80,

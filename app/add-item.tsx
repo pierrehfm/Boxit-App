@@ -24,7 +24,6 @@ export default function AddItemScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
             <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.headerButton}>
@@ -43,7 +42,6 @@ export default function AddItemScreen() {
             >
                 <ScrollView contentContainerStyle={styles.content}>
 
-                    {/* Nom de l'objet */}
                     <Text style={styles.label}>Nom de l'objet</Text>
                     <TextInput
                         style={styles.input}
@@ -51,7 +49,6 @@ export default function AddItemScreen() {
                         onChangeText={setName}
                     />
 
-                    {/* Quantité */}
                     <Text style={styles.label}>Quantité</Text>
                     <View style={styles.quantityRow}>
                         <TouchableOpacity style={styles.minusButton}>
@@ -66,7 +63,6 @@ export default function AddItemScreen() {
                         />
                     </View>
 
-                    {/* Méthode de saisie */}
                     <Text style={styles.label}>Méthode de saisie</Text>
                     <View style={styles.methodRow}>
                         {INPUT_METHODS.map((m) => (
@@ -87,7 +83,6 @@ export default function AddItemScreen() {
                         ))}
                     </View>
 
-                    {/* Description */}
                     <Text style={styles.label}>Description (optionnel)</Text>
                     <TextInput
                         style={[styles.input, styles.textArea]}
@@ -97,7 +92,6 @@ export default function AddItemScreen() {
                         onChangeText={setDescription}
                     />
 
-                    {/* Photos */}
                     <Text style={styles.label}>Photos (optionnel)</Text>
                     <View style={styles.photosRow}>
                         <TouchableOpacity style={styles.addPhotoBox}>
@@ -108,7 +102,6 @@ export default function AddItemScreen() {
                         ))}
                     </View>
 
-                    {/* Fragile */}
                     <Text style={styles.label}>Fragile</Text>
                     <View style={styles.fragileRow}>
                         <TouchableOpacity
@@ -122,8 +115,6 @@ export default function AddItemScreen() {
                             style={[styles.fragileButton, !isFragile && styles.fragileButtonActive]} // Assuming active style implies selection
                             onPress={() => setIsFragile(false)}
                         >
-                            {/* Note: In the image 'Oui' is dark blue (active) and 'Non' is white (inactive). 
-                         Assuming toggle behavior visual. */}
                             <Text style={[styles.fragileText, !isFragile && styles.fragileTextActive]}>Non</Text>
                         </TouchableOpacity>
                     </View>
@@ -131,7 +122,6 @@ export default function AddItemScreen() {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Bottom Button */}
             <SafeAreaView edges={['bottom']} style={styles.footer}>
                 <TouchableOpacity style={styles.mainButton} onPress={handleBack}>
                     <Text style={styles.mainButtonText}>Ajouter l'objet</Text>

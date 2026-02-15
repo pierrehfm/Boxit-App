@@ -26,7 +26,6 @@ export default function SignupScreen() {
             password,
             options: {
                 data: {
-                    // full_name: 'Unknown', // design doesn't have name field
                 }
             }
         });
@@ -40,7 +39,6 @@ export default function SignupScreen() {
             } else {
                 router.replace('/');
             }
-            // If session exists (auto-confirm), auth listener will handle it.
             setLoading(false);
         }
     }
@@ -113,7 +111,7 @@ export default function SignupScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8F9FB', // Light background
+        backgroundColor: '#F8F9FB',
         justifyContent: 'center',
         padding: 24,
     },
@@ -154,7 +152,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_400Regular',
     },
     button: {
-        backgroundColor: '#F7B900', // Yellow/Gold
+        backgroundColor: '#F7B900',
         borderRadius: 8,
         height: 48,
         justifyContent: 'center',

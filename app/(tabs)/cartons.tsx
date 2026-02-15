@@ -20,7 +20,7 @@ const BOXES = [
         count: 8,
         qrCode: 'QR- 1203',
         status: 'Terminé',
-        statusColor: '#10B981', // Green
+        statusColor: '#10B981',
         icon: 'book-open-page-variant',
         progress: 1.0,
     },
@@ -31,7 +31,7 @@ const BOXES = [
         count: 30,
         qrCode: 'QR- 2605',
         status: 'En cours',
-        statusColor: '#3B82F6', // Blue
+        statusColor: '#3B82F6',
         icon: 'silverware-fork-knife',
         progress: 0.6,
     },
@@ -42,7 +42,7 @@ const BOXES = [
         count: 15,
         qrCode: 'QR- 3002',
         status: 'En cours',
-        statusColor: '#3B82F6', // Blue
+        statusColor: '#3B82F6',
         icon: 'tshirt-crew',
         progress: 0.4,
     },
@@ -53,7 +53,7 @@ const BOXES = [
         count: 12,
         qrCode: 'QR- 3010',
         status: 'Terminé',
-        statusColor: '#10B981', // Green
+        statusColor: '#10B981',
         icon: 'toy-brick',
         progress: 1.0,
     },
@@ -174,8 +174,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#000833',
         paddingHorizontal: 24,
         paddingBottom: 20,
-        borderBottomLeftRadius: 0, // Design looks straight or slight curve, keeping straight for now or adding localized radius later if needed.
-        // Assuming full block header based on image
+        borderBottomLeftRadius: 0,
         paddingTop: 10,
     },
     headerTopRow: {
@@ -285,7 +284,7 @@ const styles = StyleSheet.create({
         color: '#000833',
         textTransform: 'uppercase',
         marginBottom: 4,
-        flex: 1, // Allow wrap
+        flex: 1,
         marginRight: 8,
     },
     cardSubtitle: {

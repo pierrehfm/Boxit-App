@@ -1,26 +1,49 @@
 
+import { api, Box, Item } from '@/lib/api';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Fake Data for Detail View
-const ITEMS = [
-    { id: '1', name: 'Romans', quantity: 15, icon: 'book-open-page-variant' },
-    { id: '2', name: 'BD', quantity: 8, icon: 'book-open-page-variant' },
-    { id: '3', name: 'Humour', quantity: 5, icon: 'emoticon-happy-outline' },
-];
-
 export default function BoxDetailScreen() {
+    const { boxId } = useLocalSearchParams<{ boxId: string }>();
+    const [box, setBox] = useState<Box | null>(null);
+    const [items, setItems] = useState<Item[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const handleBack = () => {
         router.back();
     };
 
-    const renderItem = ({ item }: { item: any }) => (
+    const loadData = async () => {
+        try {
+            if (!boxId) return;
+            setLoading(true);
+            const [b, i] = await Promise.all([
+                api.getBox(boxId),
+                api.getBoxItems(boxId)
+            ]);
+            setBox(b);
+            setItems(i);
+        } catch (e) {
+            console.error("Error loading box details:", e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [boxId])
+    );
+
+    const renderItem = ({ item }: { item: Item }) => (
         <View style={styles.itemCard}>
             <View style={styles.itemIconContainer}>
-                <MaterialCommunityIcons name={item.icon} size={24} color="#000833" />
+                {/* Default icon per item or generic. DB item doesn't have icon field, using generic */}
+                <MaterialCommunityIcons name="cube-outline" size={24} color="#000833" />
             </View>
             <View style={styles.itemContent}>
                 <Text style={styles.itemName}>{item.name}</Text>
@@ -31,6 +54,24 @@ export default function BoxDetailScreen() {
             </TouchableOpacity>
         </View>
     );
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#000833" />
+            </View>
+        );
+    }
+
+    if (!box) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <Text style={{ fontFamily: 'Outfit_600SemiBold', color: '#000833' }}>Carton introuvable</Text>
+            </View>
+        );
+    }
+
+    const totalItems = items.reduce((acc, curr) => acc + curr.quantity, 0);
 
     return (
         <View style={styles.container}>
@@ -49,17 +90,20 @@ export default function BoxDetailScreen() {
 
                     <View style={styles.boxInfoContainer}>
                         <View style={styles.mainIconContainer}>
-                            <MaterialCommunityIcons name="book-open-page-variant" size={40} color="#000833" />
+                            <MaterialCommunityIcons name="package-variant-closed" size={40} color="#000833" />
                         </View>
                         <View style={styles.boxTextFields}>
-                            <Text style={styles.boxTitle}>LIVRES BIBLIOTHÈQUE</Text>
-                            <Text style={styles.boxSubtitle}>Salon • QR-1203</Text>
+                            <Text style={styles.boxTitle}>{box.name}</Text>
+                            <Text style={styles.boxSubtitle}>{box.room ? box.room + ' • ' : ''}{box.qr_code}</Text>
                             <View style={styles.badgesRow}>
-                                <View style={[styles.badge, { backgroundColor: '#10B981' }]}>
-                                    <Text style={styles.badgeText}>Terminé</Text>
+                                <View style={[styles.badge, { backgroundColor: box.status === 'sealed' ? '#10B981' : '#3B82F6' }]}>
+                                    <Text style={styles.badgeText}>
+                                        {box.status === 'filling' ? 'En cours' :
+                                            box.status === 'sealed' ? 'Scellé' : 'Déballé'}
+                                    </Text>
                                 </View>
                                 <View style={[styles.badge, { backgroundColor: '#343852' }]}>
-                                    <Text style={styles.badgeText}>8 objets</Text>
+                                    <Text style={styles.badgeText}>{items.length} objets</Text>
                                 </View>
                             </View>
                         </View>
@@ -70,22 +114,27 @@ export default function BoxDetailScreen() {
             <View style={styles.contentContainer}>
                 <View style={styles.contentHeaderRow}>
                     <Text style={styles.sectionTitle}>CONTENU</Text>
-                    <TouchableOpacity style={styles.addButton} onPress={() => router.push('/add-item')}>
+                    <TouchableOpacity style={styles.addButton} onPress={() => router.push({ pathname: '/add-item', params: { boxId: box.id } })}>
                         <Ionicons name="add" size={16} color="#FFFFFF" />
                         <Text style={styles.addButtonText}>Ajouter</Text>
                     </TouchableOpacity>
                 </View>
 
                 <FlatList
-                    data={ITEMS}
+                    data={items}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
                     contentContainerStyle={styles.listContent}
+                    ListEmptyComponent={
+                        <Text style={{ color: '#6E7591', textAlign: 'center', marginTop: 20, fontFamily: 'Outfit_400Regular' }}>
+                            Ce carton est vide.
+                        </Text>
+                    }
                 />
             </View>
 
             <SafeAreaView edges={['bottom']} style={styles.footer}>
-                <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/update-status')}>
+                <TouchableOpacity style={styles.actionButton} onPress={() => router.push({ pathname: '/update-status', params: { boxId: box.id, currentStatus: box.status } })}>
                     <Text style={styles.actionButtonText}>Modifier le statut</Text>
                 </TouchableOpacity>
             </SafeAreaView>

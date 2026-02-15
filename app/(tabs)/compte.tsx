@@ -44,20 +44,15 @@ export default function CompteScreen() {
 
     const handleLogout = () => {
         signOut();
-        // Redirect to start screen is handled by the root layout via session state,
-        // but explicit replace helps UX sometimes. 
-        // Usually replacing user state is enough.
     };
 
-    // Derived values with defaults
-    const userName = profile?.full_name || 'Utilisateur'; // Nom par défaut
+    const userName = profile?.full_name || 'Utilisateur';
     const userEmail = user?.email || 'email@exemple.com';
-    const avatar = profile?.avatar_url; // Handle avatar image if URL exists later
+    const avatar = profile?.avatar_url;
 
 
     return (
         <View style={styles.container}>
-            {/* Header Section */}
             <View style={styles.headerContainer}>
                 <SafeAreaView edges={['top']}>
                     <View style={styles.topRow}>

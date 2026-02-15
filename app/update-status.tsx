@@ -22,7 +22,6 @@ export default function UpdateStatusScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
             <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.headerButton}>
@@ -35,7 +34,6 @@ export default function UpdateStatusScreen() {
 
             <ScrollView contentContainerStyle={styles.content}>
 
-                {/* Top Summary Card */}
                 <View style={styles.summaryCard}>
                     <View style={styles.summaryIconContainer}>
                         <MaterialCommunityIcons name="book-open-page-variant" size={32} color="#FFFFFF" />
@@ -85,7 +83,6 @@ export default function UpdateStatusScreen() {
                 </View>
             </ScrollView>
 
-            {/* Footer Button */}
             <SafeAreaView edges={['bottom']} style={styles.footer}>
                 <TouchableOpacity style={styles.confirmButton} onPress={handleBack}>
                     <Text style={styles.confirmButtonText}>Confirmer le changement</Text>

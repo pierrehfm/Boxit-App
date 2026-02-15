@@ -14,9 +14,8 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SessionProvider, useSession } from '../context/AuthContext';
-// @ts-ignore
 import Logo from '../assets/images/logo.svg';
+import { SessionProvider, useSession } from '../context/AuthContext';
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
@@ -32,7 +31,6 @@ function RootLayoutNav() {
   });
 
   const currentRoute = segments.join('/');
-  // Define public routes that don't need auth
   const isPublicRoute =
     currentRoute === 'start' ||
     currentRoute === 'login' ||
@@ -46,12 +44,10 @@ function RootLayoutNav() {
     } else if (!user && !isPublicRoute) {
       router.replace('/start');
     }
-  }, [user, isLoading, fontsLoaded, isPublicRoute]); // Use isPublicRoute instead of currentRoute
-
+  }, [user, isLoading, fontsLoaded, isPublicRoute]);
   if (isLoading || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        {/* SVG Logo is now a component thanks to the transformer */}
         <Logo width={200} height={200} />
       </View>
     );

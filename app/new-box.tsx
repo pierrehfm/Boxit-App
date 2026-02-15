@@ -1,8 +1,9 @@
 
+import { api } from '@/lib/api';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Icon options matching the image roughly
@@ -12,7 +13,7 @@ const ICON_OPTIONS = [
     'tshirt-crew',
     'laptop',
     'gamepad-variant',
-    'face-man-profile', // closest to baby? or maybe 'baby-face'
+    'face-man-profile',
     'dumbbell',
     'tools',
 ];
@@ -20,27 +21,64 @@ const ICON_OPTIONS = [
 const PRIORITIES = ['Basse', 'Normale', 'Haute'];
 
 export default function NewBoxScreen() {
+    const { qrCode: paramQrCode, projectId: paramProjectId } = useLocalSearchParams<{ qrCode: string; projectId: string }>();
+
     const [name, setName] = useState('');
-    const [room, setRoom] = useState(''); // Could be a select, but keeping as input for now with grey bg
+    const [room, setRoom] = useState('');
     const [selectedIcon, setSelectedIcon] = useState(ICON_OPTIONS[0]);
     const [description, setDescription] = useState('');
     const [priority, setPriority] = useState('Normale');
+    const [loading, setLoading] = useState(false);
 
     const handleBack = () => {
         router.back();
     };
 
+    const handleCreate = async () => {
+        if (!name.trim()) {
+            Alert.alert("Erreur", "Le nom du carton est requis.");
+            return;
+        }
+
+        if (!paramProjectId) {
+
+            Alert.alert("Erreur", "Aucun projet associé. Veuillez passer par l'écran d'accueil ou le dashboard.");
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const finalQrCode = paramQrCode || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
+            await api.createBox({
+                project_id: paramProjectId,
+                qr_code: finalQrCode,
+                name: name.trim(),
+                room: room.trim() || null,
+                status: 'filling',
+            });
+
+            Alert.alert("Succès", "Carton créé avec succès !", [
+                { text: "OK", onPress: () => router.push('/(tabs)/cartons') }
+            ]);
+        } catch (e: any) {
+            console.error("Create box error:", e);
+            Alert.alert("Erreur", e.message || "Une erreur est survenue.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <View style={styles.container}>
-            {/* Header */}
             <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.headerButton}>
                         <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>NOUVEAU CARTON</Text>
-                    <TouchableOpacity onPress={handleBack} style={styles.headerButton}>
-                        <Ionicons name="checkmark" size={24} color="#FFFFFF" />
+                    <TouchableOpacity onPress={handleCreate} disabled={loading} style={styles.headerButton}>
+                        {loading ? <ActivityIndicator color="white" /> : <Ionicons name="checkmark" size={24} color="#FFFFFF" />}
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -51,30 +89,33 @@ export default function NewBoxScreen() {
             >
                 <ScrollView contentContainerStyle={styles.content}>
 
-                    {/* Nom du carton */}
+                    {paramQrCode && (
+                        <View style={{ marginBottom: 20, padding: 10, backgroundColor: '#E0E7FF', borderRadius: 8 }}>
+                            <Text style={{ fontFamily: 'Outfit_600SemiBold', color: '#000833' }}>
+                                QR Code associé : {paramQrCode}
+                            </Text>
+                        </View>
+                    )}
+
                     <Text style={styles.label}>Nom du carton</Text>
                     <TextInput
                         style={styles.input}
-                        placeholder=""
+                        placeholder="Ex: Livres Salon"
                         value={name}
                         onChangeText={setName}
                     />
 
-                    {/* Pièce */}
                     <Text style={styles.label}>Pièce</Text>
                     <View style={styles.inputDisabledContainer}>
                         <TextInput
-                            style={[styles.input, styles.inputDisabled]}
-                            placeholder=""
+                            style={styles.input}
+                            placeholder="Ex: Salon"
                             value={room}
                             onChangeText={setRoom}
-                        // Assuming it might be a selector later, but user just said front. 
-                        // Image shows grey background.
                         />
                     </View>
 
-                    {/* Icône */}
-                    <Text style={styles.label}>Icône</Text>
+                    <Text style={styles.label}>Icône (Visuel seulement)</Text>
                     <View style={styles.iconGrid}>
                         {ICON_OPTIONS.map((icon) => (
                             <TouchableOpacity
@@ -94,7 +135,6 @@ export default function NewBoxScreen() {
                         ))}
                     </View>
 
-                    {/* Description */}
                     <Text style={styles.label}>Description (optionnel)</Text>
                     <TextInput
                         style={[styles.input, styles.textArea]}
@@ -104,8 +144,7 @@ export default function NewBoxScreen() {
                         onChangeText={setDescription}
                     />
 
-                    {/* Priorité */}
-                    <Text style={styles.label}>Priorité</Text>
+                    <Text style={styles.label}>Priorité (Visuel seulement)</Text>
                     <View style={styles.priorityContainer}>
                         {PRIORITIES.map((p) => (
                             <TouchableOpacity
@@ -127,10 +166,13 @@ export default function NewBoxScreen() {
                 </ScrollView>
             </KeyboardAvoidingView>
 
-            {/* Bottom Button */}
             <SafeAreaView edges={['bottom']} style={styles.footer}>
-                <TouchableOpacity style={styles.createButton} onPress={handleBack}>
-                    <Text style={styles.createButtonText}>Créer le carton</Text>
+                <TouchableOpacity style={styles.createButton} onPress={handleCreate} disabled={loading}>
+                    {loading ? (
+                        <ActivityIndicator color="white" />
+                    ) : (
+                        <Text style={styles.createButtonText}>Créer le carton</Text>
+                    )}
                 </TouchableOpacity>
             </SafeAreaView>
         </View>
@@ -153,7 +195,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
     },
     headerTitle: {
-        fontFamily: 'Outfit_700Bold', // Bold for header
+        fontFamily: 'Outfit_700Bold',
         fontSize: 18,
         color: '#FFFFFF',
         textTransform: 'uppercase',
@@ -184,10 +226,9 @@ const styles = StyleSheet.create({
         color: '#000833',
     },
     inputDisabledContainer: {
-        // Wrapper if needed so we don't assume functionality
     },
     inputDisabled: {
-        backgroundColor: '#F0F2F5', // Grey background as shown in design for 'Pièce'
+        backgroundColor: '#F0F2F5',
         borderColor: '#E6E8F0',
     },
     iconGrid: {
@@ -196,16 +237,16 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     iconButton: {
-        width: '23%', // 4 columns
-        height: '23%', // 4 columns
-        aspectRatio: 1, // Keep it square
+        width: '23%',
+        height: '23%',
+        aspectRatio: 1,
         borderRadius: 12,
         backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#E6E8F0',
-        marginBottom: 12, // Vertical spacing since gap is removed
+        marginBottom: 12,
     },
     iconButtonActive: {
         backgroundColor: '#000833',
@@ -243,7 +284,7 @@ const styles = StyleSheet.create({
     },
     footer: {
         padding: 24,
-        backgroundColor: '#F8F9FB', // Blend with background
+        backgroundColor: '#F8F9FB',
     },
     createButton: {
         backgroundColor: '#000833',

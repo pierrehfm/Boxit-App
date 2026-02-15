@@ -16,7 +16,6 @@ export default function SettingsScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
             <View style={styles.headerContainer}>
                 <SafeAreaView edges={['top']} style={styles.safeHeader}>
                     <Text style={styles.topLabel}>PARAMÈTRES</Text>
@@ -32,7 +31,6 @@ export default function SettingsScreen() {
 
             <ScrollView contentContainerStyle={styles.content}>
 
-                {/* COMPTE */}
                 <Text style={styles.sectionTitle}>COMPTE</Text>
                 <TouchableOpacity style={styles.itemCard} onPress={() => router.push('/edit-profile')}>
                     <View style={styles.iconBox}>
@@ -56,7 +54,6 @@ export default function SettingsScreen() {
                     <Ionicons name="chevron-forward" size={20} color="#A7A9BE" />
                 </TouchableOpacity>
 
-                {/* NOTIFICATIONS */}
                 <Text style={styles.sectionTitle}>NOTIFICATIONS</Text>
                 <View style={styles.itemCard}>
                     <View style={styles.iconBox}>
@@ -92,7 +89,6 @@ export default function SettingsScreen() {
                     />
                 </View>
 
-                {/* PRÉFÉRENCES */}
                 <Text style={styles.sectionTitle}>PRÉFÉRENCES</Text>
                 <TouchableOpacity style={styles.itemCard}>
                     <View style={styles.iconBox}>
@@ -122,7 +118,6 @@ export default function SettingsScreen() {
                     />
                 </View>
 
-                {/* DONNÉES */}
                 <Text style={styles.sectionTitle}>DONNÉES</Text>
                 <TouchableOpacity style={styles.itemCard}>
                     <View style={styles.iconBox}>
@@ -165,14 +160,7 @@ const styles = StyleSheet.create({
 
     itemCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1 },
     iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginRight: 16 }, // Plain white in design? No looks like minimal icon
-    // Actually looking closely at image, icons don't have box background, just icon. 
-    // Wait, let's look closer. "Informations personnelles" has a user icon.
-    // The previous design (compte) had grey boxes. This one seems clean. 
-    // Ah, wait, re-checking image "uploaded_image_1768741534021.png".
-    // It seems they are simple icons on the left, no box background.
-    // BUT "Supprimer" has a red bin.
-    // Let's stick to clean icons without background for this one, or very subtle.
-    // Actually, let's keep it simple as just icon.
+
 
     itemContent: { flex: 1 },
     itemTitle: { fontFamily: 'Outfit_700Bold', fontSize: 16, color: '#000833', marginBottom: 2 },
