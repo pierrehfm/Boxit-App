@@ -7,11 +7,11 @@
  *   node scripts/seed.js
  *
  * Prerequisites:
- *   - .env file with EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY
- *   - Supabase tables already created (profiles, projects, project_members, boxes, items)
+ *   - .env file with EXPO_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+ *   - Supabase tables already created (run supabaseSQL.txt first)
  *
- * The script creates a test user and populates projects, boxes, and items
- * so that the app has realistic data to work with during development.
+ * SUPABASE_SERVICE_ROLE_KEY: Supabase Dashboard > Project Settings > API > service_role
+ * This key bypasses RLS, which is required for seed operations.
  */
 
 const { createClient } = require("@supabase/supabase-js");
@@ -35,19 +35,28 @@ if (fs.existsSync(envPath)) {
     if (!process.env[key]) process.env[key] = value;
   }
 } else {
-  console.error("ERROR: .env file not found. Copy .env.dist to .env and fill in your Supabase credentials.");
+  console.error("ERROR: .env file not found.");
   process.exit(1);
 }
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error("ERROR: EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set in .env");
+if (!supabaseUrl) {
+  console.error("ERROR: EXPO_PUBLIC_SUPABASE_URL must be set in .env");
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (!serviceRoleKey) {
+  console.error("ERROR: SUPABASE_SERVICE_ROLE_KEY must be set in .env");
+  console.error("       Find it in: Supabase Dashboard > Project Settings > API > service_role");
+  process.exit(1);
+}
+
+// Service role client — bypasses RLS entirely, required for seed operations.
+const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
 // ---------------------------------------------------------------------------
 // Test user credentials
@@ -149,113 +158,99 @@ async function seed() {
   console.log("\n=== BOXIT SEED ===\n");
 
   // -----------------------------------------------------------------------
-  // 1. Create or sign in test user
+  // 1. Create or retrieve test user via Admin API
+  //    auth.admin.createUser() bypasses email confirmation entirely.
+  //    The handle_new_user trigger auto-creates the profile row.
   // -----------------------------------------------------------------------
   console.log("1. Creating test user...");
 
   let userId;
 
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+  const { data: createData, error: createError } = await supabase.auth.admin.createUser({
     email: TEST_USER.email,
     password: TEST_USER.password,
+    email_confirm: true,
+    user_metadata: { full_name: TEST_USER.full_name },
   });
 
-  if (signUpError) {
-    if (signUpError.message.includes("already") || signUpError.message.includes("exists")) {
-      log("User already exists, signing in...");
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: TEST_USER.email,
-        password: TEST_USER.password,
-      });
-      if (signInError) {
-        console.error("ERROR: Cannot sign in as test user:", signInError.message);
+  if (createError) {
+    if (createError.message.toLowerCase().includes("already") || createError.message.toLowerCase().includes("exists")) {
+      log("User already exists, fetching by email...");
+      const { data: listData, error: listError } = await supabase.auth.admin.listUsers();
+      if (listError) {
+        console.error("ERROR: Cannot list users:", listError.message);
         process.exit(1);
       }
-      userId = signInData.user.id;
+      const existing = listData.users.find((u) => u.email === TEST_USER.email);
+      if (!existing) {
+        console.error("ERROR: User not found after listing.");
+        process.exit(1);
+      }
+      userId = existing.id;
     } else {
-      console.error("ERROR: Cannot create test user:", signUpError.message);
+      console.error("ERROR: Cannot create test user:", createError.message);
       process.exit(1);
     }
   } else {
-    userId = signUpData.user.id;
-
-    // If email confirmation is disabled, we get a session right away.
-    // If enabled, we need to sign in.
-    if (!signUpData.session) {
-      log("Email confirmation may be required. Attempting sign in...");
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: TEST_USER.email,
-        password: TEST_USER.password,
-      });
-      if (signInError) {
-        console.error("ERROR: Cannot sign in after signup (email confirmation may be enabled):", signInError.message);
-        console.error("Tip: Disable email confirmation in Supabase Dashboard > Auth > Settings for development.");
-        process.exit(1);
-      }
-      userId = signInData.user.id;
-    }
+    userId = createData.user.id;
   }
 
   log(`User ID: ${userId}`);
 
   // -----------------------------------------------------------------------
-  // 2. Upsert profile
+  // 2. Upsert profile (the handle_new_user trigger creates it on signup,
+  //    but we upsert to ensure full_name is set for existing users).
   // -----------------------------------------------------------------------
   console.log("\n2. Upserting profile...");
 
-  const { error: profileError } = await supabase.from("profiles").upsert({
-    id: userId,
-    full_name: TEST_USER.full_name,
-    email: TEST_USER.email,
-    avatar_url: null,
-  });
+  const { error: profileError } = await supabase.from("profiles").upsert(
+    { id: userId, full_name: TEST_USER.full_name, email: TEST_USER.email, avatar_url: null },
+    { onConflict: "id" }
+  );
 
   if (profileError) {
-    console.error("WARNING: Could not upsert profile:", profileError.message);
-    log("Continuing anyway (profile may be auto-created by a trigger)...");
-  } else {
-    log(`Profile created: ${TEST_USER.full_name} <${TEST_USER.email}>`);
+    console.error("ERROR: Could not upsert profile:", profileError.message);
+    process.exit(1);
   }
+  log(`Profile: ${TEST_USER.full_name} <${TEST_USER.email}>`);
 
   // -----------------------------------------------------------------------
   // 3. Clean existing seed data (idempotent re-runs)
+  //    Deleting projects cascades to project_members, boxes, and items.
+  //    Do NOT delete project_members first — the projects DELETE policy
+  //    checks ownership via project_members.
   // -----------------------------------------------------------------------
   console.log("\n3. Cleaning existing data for this user...");
 
-  const { data: existingProjects } = await supabase
+  const { data: existingProjects, error: fetchError } = await supabase
     .from("projects")
     .select("id")
     .eq("owner_id", userId);
 
+  if (fetchError) {
+    console.error("ERROR: Could not fetch existing projects:", fetchError.message);
+    process.exit(1);
+  }
+
   if (existingProjects && existingProjects.length > 0) {
-    const projectIds = existingProjects.map((p) => p.id);
+    const { error: deleteError } = await supabase
+      .from("projects")
+      .delete()
+      .eq("owner_id", userId);
 
-    // Delete items in boxes of these projects
-    const { data: existingBoxes } = await supabase
-      .from("boxes")
-      .select("id")
-      .in("project_id", projectIds);
-
-    if (existingBoxes && existingBoxes.length > 0) {
-      const boxIds = existingBoxes.map((b) => b.id);
-      await supabase.from("items").delete().in("box_id", boxIds);
-      log("Existing items deleted.");
+    if (deleteError) {
+      console.error("ERROR: Could not delete existing projects:", deleteError.message);
+      process.exit(1);
     }
-
-    await supabase.from("boxes").delete().in("project_id", projectIds);
-    log("Existing boxes deleted.");
-
-    await supabase.from("project_members").delete().in("project_id", projectIds);
-    log("Existing project members deleted.");
-
-    await supabase.from("projects").delete().eq("owner_id", userId);
-    log("Existing projects deleted.");
+    log(`${existingProjects.length} existing project(s) deleted (cascade: members, boxes, items).`);
   } else {
     log("No existing data to clean.");
   }
 
   // -----------------------------------------------------------------------
   // 4. Create projects
+  //    The on_project_created trigger automatically adds the owner as a
+  //    member with role 'owner' — no manual insertion needed.
   // -----------------------------------------------------------------------
   console.log("\n4. Creating projects...");
 
@@ -276,28 +271,9 @@ async function seed() {
   }
 
   // -----------------------------------------------------------------------
-  // 5. Add owner as project member
+  // 5. Create boxes
   // -----------------------------------------------------------------------
-  console.log("\n5. Adding owner as project member...");
-
-  for (const proj of createdProjects) {
-    const { error } = await supabase.from("project_members").insert({
-      project_id: proj.id,
-      user_id: userId,
-      role: "owner",
-    });
-
-    if (error) {
-      console.error(`WARNING: Could not add member for "${proj.name}":`, error.message);
-    } else {
-      log(`Member added to "${proj.name}"`);
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // 6. Create boxes
-  // -----------------------------------------------------------------------
-  console.log("\n6. Creating boxes...");
+  console.log("\n5. Creating boxes...");
 
   const allBoxes = [
     ...BOXES_PROJECT_1.map((b) => ({ ...b, project_id: createdProjects[0].id })),
@@ -329,9 +305,9 @@ async function seed() {
   }
 
   // -----------------------------------------------------------------------
-  // 7. Create items
+  // 6. Create items
   // -----------------------------------------------------------------------
-  console.log("\n7. Creating items...");
+  console.log("\n6. Creating items...");
 
   let totalItems = 0;
   for (const box of createdBoxes) {
@@ -359,15 +335,10 @@ async function seed() {
   // Summary
   // -----------------------------------------------------------------------
   console.log("\n=== SEED COMPLETE ===\n");
-  console.log("  Summary:");
   console.log(`    User:     ${TEST_USER.email} / ${TEST_USER.password}`);
   console.log(`    Projects: ${createdProjects.length}`);
   console.log(`    Boxes:    ${createdBoxes.length}`);
   console.log(`    Items:    ${totalItems}`);
-  console.log("");
-  console.log("  You can now log in with:");
-  console.log(`    Email:    ${TEST_USER.email}`);
-  console.log(`    Password: ${TEST_USER.password}`);
   console.log("");
 }
 
