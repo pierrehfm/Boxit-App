@@ -1,5 +1,5 @@
 
-import { api, Project, ProjectMember, ProjectStats } from '@/lib/api';
+import { api, Project, ProjectStats } from '@/lib/api';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -12,7 +12,7 @@ export default function ProjectDashboardScreen() {
     const { projectId } = useLocalSearchParams<{ projectId: string }>();
     const [project, setProject] = useState<Project | null>(null);
     const [stats, setStats] = useState<ProjectStats | null>(null);
-    const [members, setMembers] = useState<ProjectMember[]>([]);
+    const [memberCount, setMemberCount] = useState(0);
     const [roomStats, setRoomStats] = useState<{ name: string; count: number; progress: number }[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -33,16 +33,16 @@ export default function ProjectDashboardScreen() {
                     }
                 }
 
-                const [p, s, boxes, m] = await Promise.all([
+                const [p, s, boxes, members] = await Promise.all([
                     api.getProject(currentProjectId),
                     api.getProjectStats(currentProjectId),
                     api.getAllBoxes(currentProjectId),
-                    api.getProjectMembers(currentProjectId)
+                    api.getProjectMembers(currentProjectId),
                 ]);
 
                 setProject(p);
                 setStats(s);
-                setMembers(m);
+                setMemberCount(members.length);
 
                 const rooms: Record<string, { total: number; sealed: number }> = {};
                 boxes.forEach(box => {
@@ -182,44 +182,11 @@ export default function ProjectDashboardScreen() {
                 )}
 
                 <Text style={styles.sectionTitle}>ÉQUIPE</Text>
-                <View style={styles.teamCard}>
-                    <View style={styles.teamHeader}>
-                        <View style={styles.avatarRow}>
-                            {members.slice(0, 3).map((member, index) => (
-                                <View
-                                    key={index}
-                                    style={[
-                                        styles.avatarCircle,
-                                        {
-                                            zIndex: 3 - index,
-                                            marginLeft: index > 0 ? -10 : 0,
-                                            backgroundColor: '#E6E8F0',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
-                                            overflow: 'hidden'
-                                        }
-                                    ]}
-                                >
-                                    {member.avatar_url ? (
-
-                                        <Ionicons name="person" size={16} color="#000833" />
-                                    ) : (
-                                        <Ionicons name="person-outline" size={16} color="#000833" />
-                                    )}
-                                </View>
-                            ))}
-                            {members.length > 3 && (
-                                <View style={[styles.avatarCircle, { backgroundColor: '#E6E8F0', marginLeft: -10, zIndex: 0, justifyContent: 'center', alignItems: 'center' }]}>
-                                    <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 10, color: '#6E7591' }}>+{members.length - 3}</Text>
-                                </View>
-                            )}
-                        </View>
-                        <Text style={styles.teamCount}>{members.length} collaborateur{members.length > 1 ? 's' : ''}</Text>
-                    </View>
-
-                    <TouchableOpacity style={styles.manageButton} onPress={() => router.push('/collaborators')}>
-                        <Text style={styles.manageButtonText}>Gérer l'équipe</Text>
-                    </TouchableOpacity>
+                <View style={styles.teamRow}>
+                    <Ionicons name="people-outline" size={20} color="#6E7591" />
+                    <Text style={styles.teamText}>
+                        {memberCount} collaborateur{memberCount > 1 ? 's' : ''}
+                    </Text>
                 </View>
 
             </ScrollView>
@@ -261,12 +228,6 @@ const styles = StyleSheet.create({
     roomSubtext: { fontFamily: 'Outfit_400Regular', fontSize: 14, color: '#6E7591' },
     roomPercentage: { fontFamily: 'Outfit_700Bold', fontSize: 16, color: '#000833' },
 
-    teamCard: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 20 },
-    teamHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-    avatarRow: { flexDirection: 'row', marginRight: 16 },
-    avatarCircle: { width: 32, height: 32, borderRadius: 16, borderWidth: 2, borderColor: '#FFFFFF' },
-    teamCount: { fontFamily: 'Outfit_400Regular', fontSize: 14, color: '#6E7591' },
-
-    manageButton: { borderWidth: 1, borderColor: '#000833', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
-    manageButtonText: { fontFamily: 'Outfit_600SemiBold', fontSize: 14, color: '#000833' },
+    teamRow: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16 },
+    teamText: { fontFamily: 'Outfit_400Regular', fontSize: 15, color: '#6E7591' },
 });
