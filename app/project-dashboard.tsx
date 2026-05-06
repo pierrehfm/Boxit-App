@@ -25,7 +25,6 @@ export default function ProjectDashboardScreen() {
             try {
                 let currentProjectId = projectId;
                 if (!currentProjectId) {
-                    // Fallback to first project if not provided
                     const projects = await api.getUserProjects();
                     if (projects.length > 0) currentProjectId = projects[0].id;
                     else {
@@ -101,14 +100,9 @@ export default function ProjectDashboardScreen() {
         <View style={styles.container}>
             <View style={styles.headerContainer}>
                 <SafeAreaView edges={['top']} style={styles.safeHeader}>
-                    <Text style={styles.topLabel}>PROJET DASHBOARD</Text>
-
                     <View style={styles.navRow}>
                         <TouchableOpacity onPress={handleBack}>
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-                        </TouchableOpacity>
-                        <TouchableOpacity>
-                            <MaterialCommunityIcons name="dots-vertical" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                     </View>
 
@@ -237,8 +231,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8F9FB' },
     headerContainer: { backgroundColor: '#000833', paddingBottom: 20 },
     safeHeader: { paddingHorizontal: 24 },
-    topLabel: { fontFamily: 'Outfit_600SemiBold', fontSize: 12, color: '#FFFFFF', marginTop: 10, textTransform: 'uppercase', letterSpacing: 1 },
-    navRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20, marginBottom: 20 },
+    navRow: { flexDirection: 'row', marginTop: 10, marginBottom: 20 },
 
     titleContainer: { marginBottom: 20 },
     projectTitle: { fontFamily: 'Outfit_700Bold', fontSize: 24, color: '#FFFFFF', textTransform: 'uppercase', marginBottom: 4 },

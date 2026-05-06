@@ -257,7 +257,7 @@ CREATE POLICY "Users can update their own profile"
 
 CREATE POLICY "Users can view projects they are members of"
     ON public.projects FOR SELECT
-    USING (public.is_project_member(id, auth.uid()));
+    USING (auth.uid() = owner_id OR public.is_project_member(id, auth.uid()));
 
 CREATE POLICY "Users can create projects"
     ON public.projects FOR INSERT
@@ -402,6 +402,9 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.project_members TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.boxes TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.items TO authenticated;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+
+-- authenticated : lecture sur la vue project_stats
+GRANT SELECT ON public.project_stats TO authenticated;
 
 -- anon : lecture seule sur les profils (publics)
 GRANT SELECT ON public.profiles TO anon;

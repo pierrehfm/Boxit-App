@@ -1,7 +1,7 @@
 
 import { api } from '@/lib/api';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+import { Camera, CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -20,7 +20,6 @@ export default function ScanScreen() {
     const [processing, setProcessing] = useState(false);
 
     useEffect(() => {
-        // Fetch default project ID (first one)
         api.getUserProjects().then(projects => {
             if (projects.length > 0) setDefaultProjectId(projects[0].id);
         }).catch(err => console.error(err));
@@ -103,16 +102,24 @@ export default function ScanScreen() {
     };
 
     const pickImage = async () => {
-        let result = await ImagePicker.launchImageLibraryAsync({
+        const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
+            allowsEditing: false,
             quality: 1,
         });
 
-        if (!result.canceled) {
-            console.log(result.assets[0].uri);
-            alert('Image sélectionnée (Scan depuis image non implémenté sans backend/librairie extra)');
+        if (!result.canceled && result.assets[0]) {
+            const uri = result.assets[0].uri;
+            try {
+                const scannedResults = await Camera.scanFromURLAsync(uri, ['qr']);
+                if (scannedResults.length > 0) {
+                    await handleBarcodeScanned({ type: 'qr', data: scannedResults[0].data });
+                } else {
+                    Alert.alert('Aucun QR code', 'Aucun QR code détecté dans cette image. Essayez une image plus nette.');
+                }
+            } catch (e) {
+                Alert.alert('Erreur', 'Impossible de lire cette image. Assurez-vous que le QR code est bien visible.');
+            }
         }
     };
 
@@ -288,7 +295,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
 
-    // Dashed Box
     dashedBox: {
         position: 'absolute',
         width: '100%',

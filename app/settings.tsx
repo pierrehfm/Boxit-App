@@ -18,7 +18,6 @@ export default function SettingsScreen() {
         <View style={styles.container}>
             <View style={styles.headerContainer}>
                 <SafeAreaView edges={['top']} style={styles.safeHeader}>
-                    <Text style={styles.topLabel}>PARAMÈTRES</Text>
                     <View style={styles.navRow}>
                         <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                             <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
@@ -150,8 +149,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8F9FB' },
     headerContainer: { backgroundColor: '#000833', paddingBottom: 20 },
     safeHeader: { paddingHorizontal: 24 },
-    topLabel: { fontFamily: 'Outfit_600SemiBold', fontSize: 12, color: '#FFFFFF', marginTop: 10, marginBottom: 16, textTransform: 'uppercase', letterSpacing: 1 },
-    navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    navRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
     backButton: { padding: 4 },
     headerTitle: { fontFamily: 'Outfit_700Bold', fontSize: 20, color: '#FFFFFF', textTransform: 'uppercase', marginBottom: 4 }, // Centered title visually via space-between
 
