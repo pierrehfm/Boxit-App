@@ -6,7 +6,6 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Icon options matching the image roughly
 const ICON_OPTIONS = [
     'book-open-page-variant',
     'silverware-fork-knife',
@@ -18,7 +17,11 @@ const ICON_OPTIONS = [
     'tools',
 ];
 
-const PRIORITIES = ['Basse', 'Normale', 'Haute'];
+const BOX_COLORS = [
+    '#000833', '#3B82F6', '#10B981', '#F59E0B',
+    '#EF4444', '#8B5CF6', '#EC4899', '#6B7280',
+    '#F97316', '#06B6D4',
+];
 
 export default function NewBoxScreen() {
     const { qrCode: paramQrCode, projectId: paramProjectId } = useLocalSearchParams<{ qrCode: string; projectId: string }>();
@@ -27,7 +30,7 @@ export default function NewBoxScreen() {
     const [room, setRoom] = useState('');
     const [selectedIcon, setSelectedIcon] = useState(ICON_OPTIONS[0]);
     const [description, setDescription] = useState('');
-    const [priority, setPriority] = useState('Normale');
+    const [selectedColor, setSelectedColor] = useState(BOX_COLORS[0]);
     const [loading, setLoading] = useState(false);
 
     const handleBack = () => {
@@ -56,6 +59,7 @@ export default function NewBoxScreen() {
                 name: name.trim(),
                 room: room.trim() || null,
                 status: 'filling',
+                color: selectedColor,
             });
 
             Alert.alert("Succès", "Carton créé avec succès !", [
@@ -144,21 +148,21 @@ export default function NewBoxScreen() {
                         onChangeText={setDescription}
                     />
 
-                    <Text style={styles.label}>Priorité (Visuel seulement)</Text>
-                    <View style={styles.priorityContainer}>
-                        {PRIORITIES.map((p) => (
+                    <Text style={styles.label}>Couleur</Text>
+                    <View style={styles.colorRow}>
+                        {BOX_COLORS.map(color => (
                             <TouchableOpacity
-                                key={p}
+                                key={color}
                                 style={[
-                                    styles.priorityButton,
-                                    priority === p && styles.priorityButtonActive
+                                    styles.colorCircle,
+                                    { backgroundColor: color },
+                                    selectedColor === color && styles.colorCircleSelected,
                                 ]}
-                                onPress={() => setPriority(p)}
+                                onPress={() => setSelectedColor(color)}
                             >
-                                <Text style={[
-                                    styles.priorityText,
-                                    priority === p && styles.priorityTextActive
-                                ]}>{p}</Text>
+                                {selectedColor === color && (
+                                    <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                                )}
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -256,32 +260,9 @@ const styles = StyleSheet.create({
         height: 100,
         paddingTop: 14,
     },
-    priorityContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 40,
-    },
-    priorityButton: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#E6E8F0',
-        borderRadius: 12,
-        paddingVertical: 14,
-        alignItems: 'center',
-    },
-    priorityButtonActive: {
-        backgroundColor: '#000833',
-        borderColor: '#000833',
-    },
-    priorityText: {
-        fontFamily: 'Outfit_600SemiBold',
-        color: '#6E7591',
-        fontSize: 14,
-    },
-    priorityTextActive: {
-        color: '#FFFFFF',
-    },
+    colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
+    colorCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+    colorCircleSelected: { borderWidth: 3, borderColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 },
     footer: {
         padding: 24,
         backgroundColor: '#F8F9FB',
