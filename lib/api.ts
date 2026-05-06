@@ -182,9 +182,19 @@ export const api = {
             throw new Error("Champs requis manquants pour la création du carton.");
         }
 
+        const sanitized = {
+            project_id: box.project_id,
+            qr_code: box.qr_code,
+            name: box.name,
+            room: box.room ?? null,
+            color: box.color ?? null,
+            is_fragile: box.is_fragile ?? false,
+            status: 'filling' as const,
+        };
+
         const { data, error } = await supabase
             .from('boxes')
-            .insert(box)
+            .insert(sanitized)
             .select()
             .single();
 
@@ -205,10 +215,11 @@ export const api = {
     },
 
     searchBoxes: async (query: string) => {
+        const escaped = query.replace(/[%_\\]/g, '\\$&');
         const { data, error } = await supabase
             .from('boxes')
             .select('*, items:items(count)')
-            .ilike('name', `%${query}%`)
+            .ilike('name', `%${escaped}%`)
             .order('updated_at', { ascending: false })
             .limit(30);
 
@@ -220,10 +231,11 @@ export const api = {
     },
 
     searchItems: async (query: string) => {
+        const escaped = query.replace(/[%_\\]/g, '\\$&');
         const { data, error } = await supabase
             .from('items')
             .select('*, box:boxes(id, name, room, project_id, status)')
-            .ilike('name', `%${query}%`)
+            .ilike('name', `%${escaped}%`)
             .order('created_at', { ascending: false })
             .limit(30);
 
@@ -248,6 +260,17 @@ export const api = {
         quantity: number,
         description?: string | null,
     ) => {
+        const { data: box, error: boxError } = await supabase
+            .from('boxes')
+            .select('status')
+            .eq('id', boxId)
+            .single();
+
+        if (boxError) throw boxError;
+        if (box.status !== 'filling') {
+            throw new Error("Impossible d'ajouter un item à un carton qui n'est pas en cours de remplissage.");
+        }
+
         const { data, error } = await supabase
             .from('items')
             .insert({ box_id: boxId, name, quantity, description: description || null })
@@ -300,7 +323,7 @@ export const api = {
             .eq('email', email)
             .single();
 
-        if (userError || !users) throw new Error("Utilisateur introuvable.");
+        if (userError || !users) throw new Error("Impossible d'ajouter ce membre. Vérifiez l'adresse email.");
 
         const { error: memberError } = await supabase
             .from('project_members')
@@ -308,7 +331,7 @@ export const api = {
 
         if (memberError) {
             if (memberError.code === '23505') {
-                throw new Error("Cet utilisateur est déjà membre du projet.");
+                throw new Error("Impossible d'ajouter ce membre. Vérifiez l'adresse email.");
             }
             throw memberError;
         }

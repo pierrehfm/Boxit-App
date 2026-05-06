@@ -51,7 +51,10 @@ export default function NewBoxScreen() {
 
         setLoading(true);
         try {
-            const finalQrCode = paramQrCode || `GEN-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            const finalQrCode = paramQrCode || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+                const r = Math.random() * 16 | 0;
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
 
             await api.createBox({
                 project_id: paramProjectId,

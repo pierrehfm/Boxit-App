@@ -27,10 +27,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Fetch session on mount
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
+        // Verify user server-side on mount (getUser validates the JWT with Supabase)
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setUser(user ?? null);
+            if (user) {
+                supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+            }
             setIsLoading(false);
         });
 

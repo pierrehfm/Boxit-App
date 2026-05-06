@@ -129,16 +129,16 @@ export default function SettingsScreen() {
                     <Ionicons name="chevron-forward" size={20} color="#A7A9BE" />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.itemCard}>
+                <View style={[styles.itemCard, { opacity: 0.4 }]}>
                     <View style={[styles.iconBox, { backgroundColor: '#FEF2F2' }]}>
                         <Feather name="trash-2" size={20} color="#EF4444" />
                     </View>
                     <View style={styles.itemContent}>
                         <Text style={[styles.itemTitle, { color: '#EF4444' }]}>Supprimer mon compte</Text>
-                        <Text style={styles.itemSubtitle}>Action irréversible</Text>
+                        <Text style={styles.itemSubtitle}>Bientôt disponible</Text>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color="#A7A9BE" />
-                </TouchableOpacity>
+                </View>
 
             </ScrollView>
         </View>

@@ -45,7 +45,9 @@ function RootLayoutNav() {
       router.replace('/start');
     }
   }, [user, isLoading, fontsLoaded, isPublicRoute]);
-  if (isLoading || !fontsLoaded) {
+  // Keep loading screen until auth is resolved and the current route is correct,
+  // preventing protected screens from mounting (and fetching) before redirect fires.
+  if (isLoading || !fontsLoaded || (!user && !isPublicRoute)) {
     return (
       <View style={styles.loadingContainer}>
         <Logo width={200} height={200} />
