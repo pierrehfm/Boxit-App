@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, S
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const ICON_OPTIONS = [
-    'book-open-page-variant',
+    'package-variant-closed',
     'silverware-fork-knife',
     'tshirt-crew',
     'laptop',
@@ -63,6 +63,7 @@ export default function NewBoxScreen() {
                 room: room.trim() || null,
                 status: 'filling',
                 color: selectedColor,
+                icon: selectedIcon,
             });
 
             Alert.alert("Succès", "Carton créé avec succès !", [

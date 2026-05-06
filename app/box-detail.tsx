@@ -151,8 +151,8 @@ export default function BoxDetailScreen() {
                     </View>
 
                     <View style={styles.boxInfoContainer}>
-                        <View style={styles.mainIconContainer}>
-                            <MaterialCommunityIcons name="package-variant-closed" size={40} color="#000833" />
+                        <View style={[styles.mainIconContainer, { backgroundColor: box.color || '#FFFFFF' }]}>
+                            <MaterialCommunityIcons name={(box.icon || 'package-variant-closed') as any} size={40} color="#FFFFFF" />
                         </View>
                         <View style={styles.boxTextFields}>
                             <Text style={styles.boxTitle}>{box.name}</Text>
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     safeHeader: { paddingHorizontal: 24 },
     navRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 24 },
     boxInfoContainer: { flexDirection: 'row', alignItems: 'center' },
-    mainIconContainer: { width: 80, height: 80, backgroundColor: '#FFFFFF', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    mainIconContainer: { width: 80, height: 80, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
     boxTextFields: { flex: 1 },
     boxTitle: { fontFamily: 'Outfit_700Bold', fontSize: 18, color: '#FFFFFF', textTransform: 'uppercase', marginBottom: 4 },
     boxSubtitle: { fontFamily: 'Outfit_400Regular', fontSize: 14, color: '#A7A9BE', marginBottom: 12 },

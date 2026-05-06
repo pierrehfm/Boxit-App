@@ -1,8 +1,8 @@
 
-import { api, Box, STATUS_LABELS } from '@/lib/api';
+import { api, Box, Project, STATUS_LABELS } from '@/lib/api';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -32,6 +32,8 @@ type SearchResult = {
     room: string | null;
     status: Box['status'];
     boxId: string;
+    color: string | null;
+    icon: string | null;
 };
 
 export default function RechercheScreen() {
@@ -39,7 +41,15 @@ export default function RechercheScreen() {
     const [activeFilter, setActiveFilter] = useState<FilterId>('tous');
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            api.getUserProjects().then(setProjects).catch(() => {});
+        }, [])
+    );
 
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -50,21 +60,21 @@ export default function RechercheScreen() {
         }
 
         debounceRef.current = setTimeout(() => {
-            runSearch(searchQuery, activeFilter);
+            runSearch(searchQuery, activeFilter, selectedProjectId);
         }, 400);
 
         return () => {
             if (debounceRef.current) clearTimeout(debounceRef.current);
         };
-    }, [searchQuery, activeFilter]);
+    }, [searchQuery, activeFilter, selectedProjectId]);
 
-    const runSearch = async (query: string, filter: FilterId) => {
+    const runSearch = async (query: string, filter: FilterId, projectId: string | null) => {
         setLoading(true);
         try {
             const combined: SearchResult[] = [];
 
             if (filter === 'tous' || filter === 'cartons' || filter === 'fragile') {
-                const boxes = await api.searchBoxes(query);
+                const boxes = await api.searchBoxes(query, projectId ?? undefined);
                 const filtered = filter === 'fragile' ? boxes.filter(b => b.is_fragile) : boxes;
                 for (const box of filtered) {
                     combined.push({
@@ -75,12 +85,14 @@ export default function RechercheScreen() {
                         room: box.room,
                         status: box.status,
                         boxId: box.id,
+                        color: box.color,
+                        icon: box.icon,
                     });
                 }
             }
 
             if (filter === 'tous' || filter === 'objets') {
-                const items = await api.searchItems(query);
+                const items = await api.searchItems(query, projectId ?? undefined);
                 for (const item of items) {
                     combined.push({
                         id: `item-${item.id}`,
@@ -90,6 +102,8 @@ export default function RechercheScreen() {
                         room: item.box?.room ?? null,
                         status: item.box?.status ?? 'filling',
                         boxId: item.box?.id ?? '',
+                        color: item.box?.color ?? null,
+                        icon: null,
                     });
                 }
             }
@@ -104,6 +118,11 @@ export default function RechercheScreen() {
 
     const renderResult = ({ item }: { item: SearchResult }) => {
         const statusInfo = STATUS_LABELS[item.status];
+        const iconName = item.type === 'box'
+            ? (item.icon || 'package-variant-closed')
+            : 'cube-outline';
+        const iconBg = item.type === 'box' ? (item.color || '#000833') : '#000833';
+
         return (
             <TouchableOpacity
                 style={styles.card}
@@ -114,20 +133,14 @@ export default function RechercheScreen() {
                     }
                 }}
             >
-                <View style={styles.iconContainer}>
-                    <MaterialCommunityIcons
-                        name={item.type === 'box' ? 'package-variant-closed' : 'cube-outline'}
-                        size={26}
-                        color="#FFFFFF"
-                    />
+                <View style={[styles.iconContainer, { backgroundColor: iconBg }]}>
+                    <MaterialCommunityIcons name={iconName as any} size={26} color="#FFFFFF" />
                 </View>
 
                 <View style={styles.cardContent}>
                     <View style={styles.cardTopRow}>
                         <Text style={styles.cardTitle} numberOfLines={1}>{item.title}</Text>
-                        {/* <Ionicons name="chevron-forward" size={20} color="#A7A9BE" /> */}
                     </View>
-                    {/* <Text style={styles.cardSubtitle} numberOfLines={1}>{item.subtitle}</Text> */}
 
                     <View style={styles.tagsRow}>
                         {item.room && (
@@ -203,6 +216,39 @@ export default function RechercheScreen() {
                 </SafeAreaView>
             </View>
 
+            {/* Project filter — visible only when multiple projects exist */}
+            {projects.length > 1 && (
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.projectScroll}
+                    style={styles.projectScrollWrapper}
+                >
+                    <TouchableOpacity
+                        style={[styles.projectChip, selectedProjectId === null && styles.projectChipActive]}
+                        onPress={() => setSelectedProjectId(null)}
+                    >
+                        <Text style={[styles.projectChipText, selectedProjectId === null && styles.projectChipTextActive]}>
+                            Tous les projets
+                        </Text>
+                    </TouchableOpacity>
+                    {projects.map(p => (
+                        <TouchableOpacity
+                            key={p.id}
+                            style={[styles.projectChip, selectedProjectId === p.id && styles.projectChipActive]}
+                            onPress={() => setSelectedProjectId(p.id)}
+                        >
+                            <Text
+                                style={[styles.projectChipText, selectedProjectId === p.id && styles.projectChipTextActive]}
+                                numberOfLines={1}
+                            >
+                                {p.name}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            )}
+
             <View style={styles.resultsContainer}>
                 {loading ? (
                     <ActivityIndicator size="large" color="#000833" style={{ marginTop: 40 }} />
@@ -269,6 +315,27 @@ const styles = StyleSheet.create({
     filterTextActive: { color: '#000833' },
     filterTextInactive: { color: '#FFFFFF' },
 
+    projectScrollWrapper: {
+        backgroundColor: '#F8F9FB',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E6E8F0',
+        maxHeight: 48,
+        minHeight: 48,
+    },
+    projectScroll: { paddingHorizontal: 24, paddingVertical: 8, gap: 8 },
+    projectChip: {
+        paddingHorizontal: 14,
+        paddingVertical: 5,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E6E8F0',
+        maxWidth: 200,
+    },
+    projectChipActive: { backgroundColor: '#000833', borderColor: '#000833' },
+    projectChipText: { fontFamily: 'Outfit_600SemiBold', fontSize: 13, color: '#000833' },
+    projectChipTextActive: { color: '#FFFFFF' },
+
     resultsContainer: { flex: 1, paddingHorizontal: 24 },
     resultsCount: {
         fontFamily: 'Outfit_400Regular',
@@ -302,7 +369,6 @@ const styles = StyleSheet.create({
     iconContainer: {
         width: 48,
         height: 48,
-        backgroundColor: '#000833',
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',

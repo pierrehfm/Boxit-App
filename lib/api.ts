@@ -16,6 +16,7 @@ export type Box = {
     name: string;
     room: string | null;
     color: string | null;
+    icon: string | null;
     is_fragile: boolean;
     status: 'filling' | 'sealed' | 'unpacked';
     cover_photo_path: string | null;
@@ -51,7 +52,7 @@ export type ProjectMember = {
 };
 
 export type ItemWithBox = Item & {
-    box: Pick<Box, 'id' | 'name' | 'room' | 'project_id' | 'status'> | null;
+    box: Pick<Box, 'id' | 'name' | 'room' | 'project_id' | 'status' | 'color' | 'icon'> | null;
 };
 
 export const STATUS_LABELS: Record<Box['status'], { label: string; color: string; bgColor: string }> = {
@@ -188,6 +189,7 @@ export const api = {
             name: box.name,
             room: box.room ?? null,
             color: box.color ?? null,
+            icon: box.icon ?? 'package-variant-closed',
             is_fragile: box.is_fragile ?? false,
             status: 'filling' as const,
         };
@@ -214,14 +216,16 @@ export const api = {
         return data as Box;
     },
 
-    searchBoxes: async (query: string) => {
+    searchBoxes: async (query: string, projectId?: string) => {
         const escaped = query.replace(/[%_\\]/g, '\\$&');
-        const { data, error } = await supabase
+        let q = supabase
             .from('boxes')
             .select('*, items:items(count)')
             .ilike('name', `%${escaped}%`)
             .order('updated_at', { ascending: false })
             .limit(30);
+        if (projectId) q = q.eq('project_id', projectId);
+        const { data, error } = await q;
 
         if (error) throw error;
         return data.map((box: any) => ({
@@ -230,15 +234,26 @@ export const api = {
         })) as (Box & { item_count: number })[];
     },
 
-    searchItems: async (query: string) => {
+    searchItems: async (query: string, projectId?: string) => {
         const escaped = query.replace(/[%_\\]/g, '\\$&');
-        const { data, error } = await supabase
+        let q = supabase
             .from('items')
-            .select('*, box:boxes(id, name, room, project_id, status)')
+            .select('*, box:boxes(id, name, room, project_id, status, color, icon)')
             .ilike('name', `%${escaped}%`)
             .order('created_at', { ascending: false })
             .limit(30);
 
+        if (projectId) {
+            const { data: projectBoxes } = await supabase
+                .from('boxes')
+                .select('id')
+                .eq('project_id', projectId);
+            const boxIds = (projectBoxes || []).map((b: { id: string }) => b.id);
+            if (boxIds.length === 0) return [] as ItemWithBox[];
+            q = q.in('box_id', boxIds);
+        }
+
+        const { data, error } = await q;
         if (error) throw error;
         return data as ItemWithBox[];
     },

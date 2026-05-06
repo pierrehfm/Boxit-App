@@ -94,7 +94,7 @@ export default function CartonsScreen() {
                 <View style={styles.card}>
                     <View style={styles.cardLeft}>
                         <View style={[styles.iconContainer, { backgroundColor: item.color || '#000833' }]}>
-                            <MaterialCommunityIcons name="package-variant-closed" size={28} color="#FFFFFF" />
+                            <MaterialCommunityIcons name={(item.icon || 'package-variant-closed') as any} size={28} color="#FFFFFF" />
                         </View>
                     </View>
 
