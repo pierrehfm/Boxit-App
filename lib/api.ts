@@ -50,6 +50,16 @@ export type ProjectMember = {
     email: string;
 };
 
+export type ItemWithBox = Item & {
+    box: Pick<Box, 'id' | 'name' | 'room' | 'project_id' | 'status'> | null;
+};
+
+export const STATUS_LABELS: Record<Box['status'], { label: string; color: string; bgColor: string }> = {
+    filling: { label: 'En cours', color: '#3B82F6', bgColor: '#DBEAFE' },
+    sealed:  { label: 'Scellé',   color: '#10B981', bgColor: '#D1FAE5' },
+    unpacked:{ label: 'Déballé',  color: '#8B5CF6', bgColor: '#F3E8FF' },
+};
+
 export const api = {
     getUserProjects: async () => {
         const { data, error } = await supabase
@@ -72,7 +82,20 @@ export const api = {
         return data as Project;
     },
 
-    // Get stats for a specific project using the view
+    createProject: async (name: string, description?: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Aucun utilisateur connecté.");
+
+        const { data, error } = await supabase
+            .from('projects')
+            .insert({ name, description: description || null, owner_id: user.id })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Project;
+    },
+
     getProjectStats: async (projectId: string) => {
         const { data, error } = await supabase
             .from('project_stats')
@@ -84,13 +107,27 @@ export const api = {
         return data as ProjectStats;
     },
 
+    getAllProjectStats: async () => {
+        // Fetch project IDs first (respects RLS), then filter the view.
+        const { data: projects, error: projError } = await supabase
+            .from('projects')
+            .select('id');
+        if (projError) throw projError;
+        if (!projects || projects.length === 0) return [] as ProjectStats[];
+
+        const projectIds = projects.map((p: { id: string }) => p.id);
+        const { data, error } = await supabase
+            .from('project_stats')
+            .select('*')
+            .in('project_id', projectIds);
+        if (error) throw error;
+        return data as ProjectStats[];
+    },
+
     getRecentBoxes: async (projectId?: string, limit = 5) => {
         let query = supabase
             .from('boxes')
-            .select(`
-        *,
-        items:items(count)
-      `)
+            .select('*, items:items(count)')
             .order('updated_at', { ascending: false })
             .limit(limit);
 
@@ -101,9 +138,9 @@ export const api = {
         const { data, error } = await query;
         if (error) throw error;
 
-        return data.map(box => ({
+        return data.map((box: any) => ({
             ...box,
-            item_count: box.items?.[0]?.count ?? 0
+            item_count: box.items?.[0]?.count ?? 0,
         }));
     },
 
@@ -111,20 +148,139 @@ export const api = {
         const { data, error } = await supabase
             .from('boxes')
             .select('*')
-            .eq('project_id', projectId);
+            .eq('project_id', projectId)
+            .order('created_at', { ascending: false });
 
         if (error) throw error;
         return data as Box[];
     },
 
+    getBox: async (boxId: string) => {
+        const { data, error } = await supabase
+            .from('boxes')
+            .select('*')
+            .eq('id', boxId)
+            .single();
+
+        if (error) throw error;
+        return data as Box;
+    },
+
+    getBoxByQR: async (qrCode: string) => {
+        const { data, error } = await supabase
+            .from('boxes')
+            .select('*')
+            .eq('qr_code', qrCode)
+            .single();
+
+        if (error && error.code !== 'PGRST116') throw error;
+        return data as Box | null;
+    },
+
+    createBox: async (box: Partial<Box>) => {
+        if (!box.project_id || !box.name || !box.qr_code) {
+            throw new Error("Champs requis manquants pour la création du carton.");
+        }
+
+        const { data, error } = await supabase
+            .from('boxes')
+            .insert(box)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Box;
+    },
+
+    updateBoxStatus: async (boxId: string, status: Box['status']) => {
+        const { data, error } = await supabase
+            .from('boxes')
+            .update({ status })
+            .eq('id', boxId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Box;
+    },
+
+    searchBoxes: async (query: string) => {
+        const { data, error } = await supabase
+            .from('boxes')
+            .select('*, items:items(count)')
+            .ilike('name', `%${query}%`)
+            .order('updated_at', { ascending: false })
+            .limit(30);
+
+        if (error) throw error;
+        return data.map((box: any) => ({
+            ...box,
+            item_count: box.items?.[0]?.count ?? 0,
+        })) as (Box & { item_count: number })[];
+    },
+
+    searchItems: async (query: string) => {
+        const { data, error } = await supabase
+            .from('items')
+            .select('*, box:boxes(id, name, room, project_id, status)')
+            .ilike('name', `%${query}%`)
+            .order('created_at', { ascending: false })
+            .limit(30);
+
+        if (error) throw error;
+        return data as ItemWithBox[];
+    },
+
+    getBoxItems: async (boxId: string) => {
+        const { data, error } = await supabase
+            .from('items')
+            .select('*')
+            .eq('box_id', boxId)
+            .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        return data as Item[];
+    },
+
+    createItem: async (
+        boxId: string,
+        name: string,
+        quantity: number,
+        description?: string | null,
+    ) => {
+        const { data, error } = await supabase
+            .from('items')
+            .insert({ box_id: boxId, name, quantity, description: description || null })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data as Item;
+    },
+
+    updateItem: async (itemId: string, name: string, quantity: number, description?: string | null) => {
+        const { data, error } = await supabase
+            .from('items')
+            .update({ name, quantity, description: description || null })
+            .eq('id', itemId)
+            .select()
+            .single();
+        if (error) throw error;
+        return data as Item;
+    },
+
+    deleteItem: async (itemId: string) => {
+        const { error } = await supabase
+            .from('items')
+            .delete()
+            .eq('id', itemId);
+        if (error) throw error;
+    },
+
     getProjectMembers: async (projectId: string) => {
         const { data, error } = await supabase
             .from('project_members')
-            .select(`
-        user_id,
-        role,
-        user:profiles(full_name, avatar_url, email)
-      `)
+            .select('user_id, role, user:profiles(full_name, avatar_url, email)')
             .eq('project_id', projectId);
 
         if (error) throw error;
@@ -133,7 +289,7 @@ export const api = {
             role: m.role,
             full_name: m.user?.full_name,
             avatar_url: m.user?.avatar_url,
-            email: m.user?.email
+            email: m.user?.email,
         })) as ProjectMember[];
     },
 
@@ -148,11 +304,7 @@ export const api = {
 
         const { error: memberError } = await supabase
             .from('project_members')
-            .insert({
-                project_id: projectId,
-                user_id: users.id,
-                role: 'viewer'
-            });
+            .insert({ project_id: projectId, user_id: users.id, role: 'viewer' });
 
         if (memberError) {
             if (memberError.code === '23505') {
@@ -161,64 +313,4 @@ export const api = {
             throw memberError;
         }
     },
-
-    getBoxByQR: async (qrCode: string) => {
-        const { data, error } = await supabase
-            .from('boxes')
-            .select('*')
-            .eq('qr_code', qrCode)
-            .single();
-
-        if (error && error.code !== 'PGRST116') throw error;
-        return data as Box | null;
-    },
-
-    getBox: async (boxId: string) => {
-        const { data, error } = await supabase
-            .from('boxes')
-            .select('*')
-            .eq('id', boxId)
-            .single();
-
-        if (error) throw error;
-        return data as Box;
-    },
-
-    createBox: async (box: Partial<Box>) => {
-        if (!box.project_id || !box.name || !box.qr_code) throw new Error("Missing required fields for box");
-
-        const { data, error } = await supabase
-            .from('boxes')
-            .insert(box)
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data as Box;
-    },
-
-    getBoxItems: async (boxId: string) => {
-        const { data, error } = await supabase
-            .from('items')
-            .select('*')
-            .eq('box_id', boxId)
-            .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        return data as Item[];
-    },
-
-    createProject: async (name: string, description?: string) => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("No user logged in");
-
-        const { data, error } = await supabase
-            .from('projects')
-            .insert({ name, description, owner_id: user.id })
-            .select()
-            .single();
-
-        if (error) throw error;
-        return data;
-    }
 };
