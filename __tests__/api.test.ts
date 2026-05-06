@@ -136,20 +136,20 @@ describe('api.getAllProjectStats', () => {
 
 // api.addProjectMember
 describe('api.addProjectMember', () => {
-  it('throws "Utilisateur introuvable" when email is not registered', async () => {
+  it('throws generic error when email is not registered', async () => {
     mockFrom.mockReturnValue(supaChain({ data: null, error: { message: 'not found' } }));
     await expect(api.addProjectMember('proj-1', 'nobody@test.com')).rejects.toThrow(
-      'Utilisateur introuvable.',
+      "Impossible d'ajouter ce membre. Vérifiez l'adresse email.",
     );
   });
 
-  it('throws "déjà membre" when user is already in the project (code 23505)', async () => {
+  it('throws generic error when user is already in the project (code 23505)', async () => {
     mockFrom
       .mockReturnValueOnce(supaChain({ data: { id: 'user-1' } }))
       .mockReturnValueOnce(supaChain({ error: { code: '23505', message: 'duplicate key' } }));
 
     await expect(api.addProjectMember('proj-1', 'existing@test.com')).rejects.toThrow(
-      'Cet utilisateur est déjà membre du projet.',
+      "Impossible d'ajouter ce membre. Vérifiez l'adresse email.",
     );
   });
 

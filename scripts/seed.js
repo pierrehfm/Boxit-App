@@ -72,7 +72,7 @@ const TEST_USER = {
 // ---------------------------------------------------------------------------
 const PROJECTS = [
   {
-    name: "Demenagement Paris -> Lyon",
+    name: "Demenagement Paris",
     description: "Demenagement de l'appartement parisien vers la nouvelle maison a Lyon, prevu pour juillet 2025.",
   },
   {
